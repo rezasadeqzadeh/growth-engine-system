@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{{ t('handoff.title') }}{% endblock %}
+{% block body %}
+<h1>{{ t('handoff.title') }}</h1>
+<p class="muted">{{ post.title }}</p>
+{% if done %}<div class="card"><p class="done">{{ t('handoff.already') }}</p></div>{% endif %}
+{% if video %}<video src="{{ video }}" controls playsinline preload="metadata"></video>{% endif %}
+<div class="card">
+  <p><strong>{{ t('handoff.step1') }}</strong></p>
+  <button class="btn" id="save" type="button">{{ t('handoff.save_video') }}</button>
+  <p><strong>{{ t('handoff.step2') }}</strong></p>
+  <textarea id="caption" rows="6" readonly>{{ variant.caption }}</textarea>
+  <button class="btn secondary" id="copy" type="button">{{ t('handoff.copy_caption') }}</button>
+  <p class="done" id="copied" hidden>{{ t('handoff.copied') }}</p>
+  <p><strong>{{ t('handoff.step3') }}</strong></p>
+  <a class="btn" href="https://www.instagram.com/">{{ t('handoff.open_instagram') }}</a>
+  <p class="muted">{{ t('handoff.step4') }}</p>
+</div>
+{% endblock %}
+{% block script %}
+<script>
+(function () {
+  var videoUrl = {{ (video or '') | tojson }};
+  document.getElementById("copy").addEventListener("click", function () {
+    var box = document.getElementById("caption");
+    var show = function () { document.getElementById("copied").hidden = false; };
+    if (navigator.clipboard) { navigator.clipboard.writeText(box.value).then(show); }
+    else { box.select(); document.execCommand("copy"); show(); }
+  });
+  document.getElementById("save").addEventListener("click", function () {
+    if (!videoUrl) return;
+    fetch(videoUrl).then(function (r) { return r.blob(); }).then(function (blob) {
+      var file = new File([blob], "reel.mp4", { type: "video/mp4" });
+      // The Web Share API hands the file to the phone's share sheet (save to gallery, or Instagram).
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { return navigator.share({ files: [file] }); }
+      var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "reel.mp4"; a.click();
+    }).catch(function () { location.href = videoUrl; });
+  });
+})();
+</script>
+{% endblock %}

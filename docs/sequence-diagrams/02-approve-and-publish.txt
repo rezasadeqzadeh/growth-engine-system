@@ -1,0 +1,25 @@
+title Approve and publish
+
+participant "Approver\nbot or panel" as A
+participant "Posts\nservices/posts.py\napprove()" as Posts
+participant "Worker\nservices/publishing.py\npublish_variant()" as Pub
+participant "Adapter\nchannels/*.py\npublish()" as Ad
+participant "Admin\nhandoff page /h" as H
+
+A->Posts: approve (or pick a time)
+Posts->Posts: publish time from recipe timing; calendar.attach_post
+Posts->Pub: one publish_variant job per variant at run_at
+opt convert tag with reminder_days
+Posts->Pub: publish_reminder at +N days
+end
+Pub->Pub: skip if rescheduled or already published
+Pub->Ad: publish(item)
+alt instagram not connected
+Ad->Pub: handoff_pending
+Pub->H: bot sends handoff link; admin posts, sends the post link back
+else published
+Ad->Pub: external id/url
+Pub->Pub: schedule collect_metrics (+1h, +1d, +3d, +7d)
+else refused (not retryable) / retries exhausted
+Pub->A: on_publish_failed: failed publication + bot notice
+end

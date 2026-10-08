@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}{{ ws.name }}{% endblock %}
+{% block body %}
+<h1>{{ ws.name }}</h1>
+{% if not items %}<div class="card"><p class="muted">{{ t('site.empty') }}</p></div>{% endif %}
+<div class="grid">
+{% for item in items %}
+  <a href="/s/{{ ws.slug }}/p/{{ item.post.id }}" class="card">
+    {% if item.cover %}<img class="cover" src="{{ item.cover }}" alt="" loading="lazy">{% endif %}
+    <p>{{ item.variant.title or item.post.title }}</p>
+  </a>
+{% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "growth-engine"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "sqlalchemy>=2.0",
+  "alembic>=1.13",
+  "pydantic-settings>=2.4",
+  "httpx>=0.27",
+  "pyjwt>=2.9",
+  "jdatetime>=5.0",
+  "jinja2>=3.1",
+  "python-multipart>=0.0.9",
+  "psycopg[binary]>=3.2",
+]
+
+[project.optional-dependencies]
+# The media worker only: speech to text and face detection.
+media = ["faster-whisper>=1.0", "opencv-python-headless>=4.10"]
+test = ["pytest>=8", "pytest-asyncio>=0.24", "respx>=0.21"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.setuptools.packages.find]
+include = ["growth_engine*"]
+
+# Catalogs, vertical templates and page templates ship with the code.
+[tool.setuptools.package-data]
+growth_engine = ["data/*.json", "data/verticals/*.json", "i18n/*.json", "public/templates/*.html"]

@@ -1,0 +1,83 @@
+"""Worker: claims jobs and runs their handlers.
+
+`python -m growth_engine.jobs.runner default` runs the main worker;
+`... media` runs the media worker (FFmpeg + Whisper) on the media server.
+"""
+
+import asyncio
+import logging
+import sys
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+
+from ..errors import AppError
+from ..redact import redact
+from . import queue
+
+logger = logging.getLogger(__name__)
+
+Handler = Callable[[dict], Awaitable[None]]
+
+
+class PermanentError(Exception):
+    """Retrying cannot help (bad input, missing file)."""
+
+
+@dataclass
+class Registered:
+    run: Handler
+    on_final_failure: Callable[[dict, str], None] | None
+
+
+HANDLERS: dict[str, Registered] = {}
+
+
+def handler(kind: str, on_final_failure: Callable[[dict, str], None] | None = None):
+    def wrap(fn: Handler) -> Handler:
+        HANDLERS[kind] = Registered(fn, on_final_failure)
+        return fn
+    return wrap
+
+
+def _load_handlers() -> None:
+    from . import tasks  # noqa: F401  (registers every handler)
+
+
+async def run_one(queue_name: str = "default") -> bool:
+    """Run the next due job. Returns False when there was none."""
+    _load_handlers()
+    job = queue.claim(queue_name)
+    if job is None:
+        return False
+    reg = HANDLERS.get(job.kind)
+    if reg is None:
+        queue.fail(job.id, f"No handler for {job.kind}", retry=False)
+        return True
+    try:
+        await reg.run(job.payload)
+    except Exception as exc:  # noqa: BLE001 - every failure is recorded on the job
+        permanent = isinstance(exc, PermanentError) or (isinstance(exc, AppError) and exc.status < 500)
+        message = redact(f"{type(exc).__name__}: {exc}")
+        logger.exception("[job] %s %s failed", job.kind, job.id)
+        retried = queue.fail(job.id, message, retry=not permanent)
+        if not retried and reg.on_final_failure:
+            reg.on_final_failure(job.payload, message)
+    else:
+        queue.finish(job.id)
+    return True
+
+
+async def run_forever(queue_name: str, idle_sleep: float = 2.0) -> None:
+    while True:
+        try:
+            ran = await run_one(queue_name)
+        except Exception:  # noqa: BLE001 - the loop must survive a DB hiccup
+            logger.exception("[worker] loop error")
+            ran = False
+        if not ran:
+            await asyncio.sleep(idle_sleep)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    asyncio.run(run_forever(sys.argv[1] if len(sys.argv) > 1 else "default"))

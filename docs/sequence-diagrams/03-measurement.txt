@@ -1,0 +1,22 @@
+title Measurement: link to payment
+
+participant "Visitor" as V
+participant "Public pages\npublic/pages.py" as P
+participant "Offers\nservices/offers.py\nregister()" as O
+participant "Zarinpal\nservices/zarinpal.py" as Z
+participant "Dashboard\nservices/metrics.py\ndashboard()" as D
+
+V->P: GET /b/<code>
+P->P: Click + first-touch cookie (one per workspace)
+P->V: 302 to offer page
+V->P: GET /o/<ws>/<offer> (form_view), typing -> /start (form_start)
+V->O: submit name, phone, coupon
+alt coupon given
+O->O: attribute to coupon (influencer)
+else
+O->O: attribute to first-touch link
+end
+O->Z: request_payment -> StartPay
+Z->P: GET /pay/registration?r=..&Authority&Status
+P->O: verify -> paid (repeat callbacks are no-ops)
+D->D: views -> clicks -> form starts -> payments; by tag / channel / coupon; bottleneck

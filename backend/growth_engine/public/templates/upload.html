@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ t('upload.title') }}{% endblock %}
+{% block body %}
+<h1>{{ t('upload.title') }}</h1>
+<form class="card" method="post" enctype="multipart/form-data">
+  <p class="muted">{{ t('upload.hint') }}</p>
+  <input type="file" name="file" accept="video/*" required>
+  <button class="btn" type="submit">{{ t('upload.send') }}</button>
+</form>
+{% endblock %}

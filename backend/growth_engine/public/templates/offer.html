@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{{ offer.title }} · {{ ws.name }}{% endblock %}
+{% block meta %}<meta name="description" content="{{ offer.description[:150] }}">{% endblock %}
+{% block body %}
+<h1>{{ offer.title }}</h1>
+<p class="muted">{{ ws.name }}</p>
+<div class="card">
+  {% for line in offer.description.split('\n') if line.strip() %}<p>{{ line }}</p>{% endfor %}
+  <p><strong>{{ t('offer.price') }}:</strong> {% if offer.price_toman %}{{ price }} {{ t('offer.toman') }}{% else %}{{ t('offer.free') }}{% endif %}</p>
+  {% if seats_left is not none %}<p><strong>{{ t('offer.seats_left') }}:</strong> {{ fa(seats_left) }}</p>{% endif %}
+</div>
+{% if seats_left == 0 or not offer.active %}
+<div class="card"><p class="error">{{ t('error.offer_full') if offer.active else t('error.offer_closed') }}</p></div>
+{% else %}
+<form class="card" method="post" id="reg">
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <label for="name">{{ t('offer.name') }}</label>
+  <input type="text" id="name" name="name" required value="{{ form.get('name', '') }}" autocomplete="name">
+  <label for="phone">{{ t('offer.phone') }}</label>
+  <input type="tel" id="phone" name="phone" required inputmode="numeric" pattern="09[0-9]{9}" placeholder="09xxxxxxxxx" value="{{ form.get('phone', '') }}" dir="ltr">
+  <label for="city">{{ t('offer.city') }}</label>
+  <input type="text" id="city" name="city" value="{{ form.get('city', '') }}">
+  <label for="coupon">{{ t('offer.coupon') }}</label>
+  <input type="text" id="coupon" name="coupon" value="{{ form.get('coupon', '') }}" dir="ltr">
+  <label class="check"><input type="checkbox" name="media_consent" value="1"> {{ t('offer.media_consent') }}</label>
+  <button class="btn" type="submit">{% if offer.price_toman %}{{ t('offer.pay') }}{% else %}{{ t('offer.register') }}{% endif %}</button>
+</form>
+{% endif %}
+{% endblock %}
+{% block script %}
+<script>
+(function () {
+  var form = document.getElementById("reg"); if (!form) return;
+  var sent = false;
+  form.addEventListener("input", function () {
+    if (sent) return; sent = true;
+    try { navigator.sendBeacon(location.pathname.replace(/\/$/, "") + "/start"); } catch (e) {}
+  });
+})();
+</script>
+{% endblock %}

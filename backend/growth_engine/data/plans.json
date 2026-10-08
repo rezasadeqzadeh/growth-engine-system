@@ -1,0 +1,7 @@
+{
+  "_note": "Monthly caps and prices (Toman). Prices are placeholders: set them before selling.",
+  "free":   {"price_toman": 0,       "videos": 5,   "ai_calls": 150,  "workspaces": 1},
+  "basic":  {"price_toman": 990000,  "videos": 40,  "ai_calls": 1500, "workspaces": 1},
+  "pro":    {"price_toman": 2490000, "videos": 120, "ai_calls": 5000, "workspaces": 1},
+  "agency": {"price_toman": 7900000, "videos": 600, "ai_calls": 25000, "workspaces": 30}
+}

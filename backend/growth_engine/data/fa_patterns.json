@@ -1,0 +1,7 @@
+{
+  "_note": "Persian patterns the code matches against (kept out of the source files).",
+  "stats_tag": "آمار",
+  "list_separator": "، ",
+  "dm_price": "(قیمت|هزینه).{0,20}(دایرکت|پیوی|پی‌وی)|دایرکت\\s*(بدید|بدهید|دهید|بده)",
+  "subtitle_fix": "^\\s*(.+?)\\s+را\\s+(.+?)\\s+کن\\s*$"
+}

@@ -1,0 +1,31 @@
+{
+  "_note": "tone: festive (happy content fits), sober (calm content only), silence (publish nothing). Lunar dates use the tabular Hijri calendar and can be a day off the official one.",
+  "jalali": [
+    {"month": 1, "day": 1, "days": 4, "name": "نوروز", "tone": "festive", "holiday": true},
+    {"month": 1, "day": 12, "days": 1, "name": "روز جمهوری اسلامی", "tone": "festive", "holiday": true},
+    {"month": 1, "day": 13, "days": 1, "name": "سیزده‌به‌در (روز طبیعت)", "tone": "festive", "holiday": true},
+    {"month": 3, "day": 14, "days": 1, "name": "رحلت امام خمینی", "tone": "sober", "holiday": true},
+    {"month": 3, "day": 15, "days": 1, "name": "قیام ۱۵ خرداد", "tone": "sober", "holiday": true},
+    {"month": 9, "day": 30, "days": 1, "name": "شب یلدا", "tone": "festive", "holiday": false},
+    {"month": 11, "day": 22, "days": 1, "name": "پیروزی انقلاب اسلامی", "tone": "festive", "holiday": true},
+    {"month": 12, "day": 29, "days": 1, "name": "ملی شدن صنعت نفت", "tone": "festive", "holiday": true}
+  ],
+  "hijri": [
+    {"month": 1, "day": 1, "days": 8, "name": "دهه‌ی اول محرم", "tone": "sober", "holiday": false},
+    {"month": 1, "day": 9, "days": 2, "name": "تاسوعا و عاشورا", "tone": "silence", "holiday": true},
+    {"month": 2, "day": 20, "days": 1, "name": "اربعین حسینی", "tone": "silence", "holiday": true},
+    {"month": 2, "day": 28, "days": 1, "name": "رحلت پیامبر و شهادت امام حسن", "tone": "silence", "holiday": true},
+    {"month": 2, "day": 30, "days": 1, "name": "شهادت امام رضا", "tone": "silence", "holiday": true},
+    {"month": 3, "day": 8, "days": 1, "name": "شهادت امام حسن عسکری", "tone": "sober", "holiday": true},
+    {"month": 3, "day": 17, "days": 1, "name": "میلاد پیامبر و امام صادق", "tone": "festive", "holiday": true},
+    {"month": 6, "day": 3, "days": 1, "name": "شهادت حضرت فاطمه", "tone": "silence", "holiday": true},
+    {"month": 7, "day": 13, "days": 1, "name": "میلاد امام علی (روز پدر)", "tone": "festive", "holiday": true},
+    {"month": 7, "day": 27, "days": 1, "name": "مبعث", "tone": "festive", "holiday": true},
+    {"month": 8, "day": 15, "days": 1, "name": "نیمه‌ی شعبان", "tone": "festive", "holiday": true},
+    {"month": 9, "day": 19, "days": 5, "name": "شب‌های قدر و شهادت امام علی", "tone": "silence", "holiday": true},
+    {"month": 10, "day": 1, "days": 2, "name": "عید فطر", "tone": "festive", "holiday": true},
+    {"month": 10, "day": 25, "days": 1, "name": "شهادت امام صادق", "tone": "silence", "holiday": true},
+    {"month": 12, "day": 10, "days": 1, "name": "عید قربان", "tone": "festive", "holiday": true},
+    {"month": 12, "day": 18, "days": 1, "name": "عید غدیر", "tone": "festive", "holiday": true}
+  ]
+}

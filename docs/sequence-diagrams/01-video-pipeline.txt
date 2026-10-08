@@ -1,0 +1,31 @@
+title Tag-driven video pipeline
+
+participant "Admin\nBale/Telegram" as Admin
+participant "Gateway\nbots/gateway.py\nhandle_update()" as GW
+participant "Posts\nservices/posts.py\ningest()" as Posts
+participant "Media worker\nservices/pipeline.py\nprocess_video()" as Pipe
+participant "OpenCode\nai/router.py" as AI
+participant "Approval\nservices/approval.py" as Card
+
+== Raw video in ==
+Admin->GW: video + "#گزارش_برنامه note"
+alt file_size > 20 MB
+GW->Admin: direct upload link (/up/<token>)
+else
+GW->Posts: ingest(caption) -> tag, note
+Posts->Posts: enqueue process_video (queue media)
+GW->Admin: "received, building"
+end
+opt voice note within 30 min
+GW->Pipe: transcribe_voice -> note / edit_captions
+end
+== Processing ==
+Pipe->Pipe: download, probe, Whisper + glossary fix
+opt no tag
+Pipe->AI: guess_tag
+end
+Pipe->AI: caption (all channels) + hashtags
+Pipe->Pipe: silences, plan_renders (short, story, full), ASS/SRT, cover, faces
+Pipe->Pipe: variants per connected channel, tracked link each, QC
+Pipe->Card: send_approval_card
+Card->Admin: preview + card (approve / edit / time / reject / fix subtitle)

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ variant.title or post.title }} · {{ ws.name }}{% endblock %}
+{% block meta %}
+<meta name="description" content="{{ (paragraphs[0] if paragraphs else '')[:150] }}">
+<meta property="og:title" content="{{ variant.title or post.title }}">
+{% if cover %}<meta property="og:image" content="{{ cover }}">{% endif %}
+{% endblock %}
+{% block body %}
+<p class="muted"><a href="/s/{{ ws.slug }}">{{ ws.name }}</a></p>
+<h1>{{ variant.title or post.title }}</h1>
+{% if video %}<video src="{{ video }}" poster="{{ cover or '' }}" controls playsinline preload="metadata"></video>{% endif %}
+<div class="card">{% for p in paragraphs %}<p>{{ p }}</p>{% endfor %}</div>
+<a class="btn" href="{{ cta_url }}">{{ t('site.cta') }}</a>
+<form class="card" method="post" action="/s/{{ ws.slug }}/p/{{ post.id }}/comment">
+  {% if sent %}<p class="done">{{ t('site.comment_sent') }}</p>{% endif %}
+  <label for="cname">{{ t('site.comment_name') }}</label>
+  <input type="text" id="cname" name="name">
+  <label for="ctext">{{ t('site.comment') }}</label>
+  <textarea id="ctext" name="text" rows="3" required></textarea>
+  <button class="btn secondary" type="submit">{{ t('site.comment_send') }}</button>
+</form>
+{% endblock %}

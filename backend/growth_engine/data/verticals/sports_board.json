@@ -1,0 +1,191 @@
+{
+  "title": "هیئت ورزشی",
+  "audit_benchmark": {
+    "score": 55,
+    "engagement_rate": 0.03,
+    "posts_per_week": 3
+  },
+  "pillars": [
+    {
+      "key": "routes",
+      "name": "مسیرها و طبیعت",
+      "goal": "attract"
+    },
+    {
+      "key": "safety",
+      "name": "ایمنی و آموزش",
+      "goal": "trust"
+    },
+    {
+      "key": "programs",
+      "name": "برنامه‌ها",
+      "goal": "convert"
+    },
+    {
+      "key": "people",
+      "name": "آدم‌ها",
+      "goal": "trust"
+    },
+    {
+      "key": "history",
+      "name": "تاریخ منطقه",
+      "goal": "attract"
+    }
+  ],
+  "weekly_slots": {
+    "post": 3,
+    "reel": 1,
+    "story": 5
+  },
+  "goal_mix": {
+    "attract": 0.4,
+    "trust": 0.4,
+    "convert": 0.2
+  },
+  "recipes": [
+    {
+      "tag": "اعلام_برنامه",
+      "goal": "convert",
+      "pillar": "programs",
+      "caption_style": "پیشنهاد کامل: تاریخ، قیمت، شامل چه چیزهایی است، ظرفیت",
+      "cta": "لینک ثبت‌نام",
+      "video_spec": {
+        "min_s": 15,
+        "max_s": 30,
+        "aspects": [
+          "9:16"
+        ],
+        "subtitle_mode": "sentence",
+        "overlay": "date_price",
+        "music": false
+      },
+      "channels": [
+        "instagram",
+        "bale",
+        "telegram",
+        "aparat",
+        "eitaa",
+        "rubika",
+        "site"
+      ],
+      "timing": {
+        "mode": "immediate",
+        "reminder_days": 3
+      },
+      "low_risk": false
+    },
+    {
+      "tag": "گزارش_برنامه",
+      "goal": "trust",
+      "pillar": "programs",
+      "caption_style": "داستان کوتاه برنامه به‌اضافه‌ی نقل‌قول یک شرکت‌کننده",
+      "cta": "برنامه‌ی بعدی",
+      "video_spec": {
+        "min_s": 30,
+        "max_s": 60,
+        "aspects": [
+          "9:16",
+          "16:9"
+        ],
+        "subtitle_mode": "word",
+        "overlay": "title",
+        "music": true
+      },
+      "channels": [
+        "instagram",
+        "bale",
+        "telegram",
+        "aparat",
+        "eitaa",
+        "rubika",
+        "site"
+      ],
+      "timing": {
+        "mode": "next_day_evening",
+        "hour": 18
+      },
+      "low_risk": false
+    },
+    {
+      "tag": "آموزش",
+      "goal": "trust",
+      "pillar": "safety",
+      "caption_style": "نکته‌های شماره‌دار و کاربردی",
+      "cta": "ذخیره کن",
+      "video_spec": {
+        "min_s": 30,
+        "max_s": 90,
+        "aspects": [
+          "9:16",
+          "16:9"
+        ],
+        "subtitle_mode": "sentence",
+        "overlay": "title",
+        "music": false
+      },
+      "channels": [
+        "instagram",
+        "aparat",
+        "bale"
+      ],
+      "timing": {
+        "mode": "best_hour"
+      },
+      "low_risk": false
+    },
+    {
+      "tag": "آدم‌ها",
+      "goal": "trust",
+      "pillar": "people",
+      "caption_style": "معرفی مربی یا عضو با یک جمله از زبان خودش",
+      "cta": "",
+      "video_spec": {
+        "min_s": 15,
+        "max_s": 45,
+        "aspects": [
+          "9:16"
+        ],
+        "subtitle_mode": "sentence",
+        "overlay": "name_role",
+        "music": false
+      },
+      "channels": [
+        "instagram",
+        "bale"
+      ],
+      "timing": {
+        "mode": "best_hour"
+      },
+      "low_risk": false
+    },
+    {
+      "tag": "منظره",
+      "goal": "attract",
+      "pillar": "routes",
+      "caption_style": "یک جمله‌ی قلاب به‌اضافه‌ی نام مکان",
+      "cta": "برای دوستت بفرست",
+      "video_spec": {
+        "min_s": 10,
+        "max_s": 20,
+        "aspects": [
+          "9:16"
+        ],
+        "subtitle_mode": "none",
+        "overlay": "title",
+        "music": true
+      },
+      "channels": [
+        "instagram",
+        "telegram"
+      ],
+      "timing": {
+        "mode": "best_hour"
+      },
+      "low_risk": true
+    }
+  ],
+  "event_tags": {
+    "announce": "اعلام_برنامه",
+    "report": "گزارش_برنامه"
+  }
+}

@@ -1,0 +1,15 @@
+# Local run of the same two containers Coolify deploys. The database is the
+# shared Postgres from DATABASE_URL in .env (database growth_engine).
+services:
+  backend:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    env_file: .env
+    volumes: [storage:/data]
+    ports: ["8000:8000"]
+    restart: unless-stopped
+  frontend:
+    build: { context: ., dockerfile: frontend/Dockerfile, args: { NEXT_PUBLIC_API_BASE: "${PUBLIC_BASE_URL:-http://localhost:8000}" } }
+    ports: ["3000:3000"]
+    restart: unless-stopped
+volumes:
+  storage:
