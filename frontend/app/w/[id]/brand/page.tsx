@@ -7,6 +7,7 @@ import { num, splitList } from "@/lib/format";
 import { useAction, useLoad } from "@/components/hooks";
 import { ErrorLine, Field, linesOf, Loading } from "@/components/ui";
 import { useWorkspace } from "@/components/workspace";
+import { DigitInput } from "@/components/DigitInput";
 
 interface Pillar { key: string; name: string; goal: string }
 interface Kit {
@@ -99,9 +100,9 @@ export default function BrandPage() {
         </div>
         <div className="card">
           <h2>{fa.brand.fonts}</h2>
-          <Field label={fa.brand.heading}><input type="text" className="ltr" value={draft.fonts.heading}
+          <Field label={fa.brand.heading}><DigitInput type="text" className="ltr" value={draft.fonts.heading}
             onChange={(e) => set("fonts", { ...draft.fonts, heading: e.target.value })} /></Field>
-          <Field label={fa.brand.body}><input type="text" className="ltr" value={draft.fonts.body}
+          <Field label={fa.brand.body}><DigitInput type="text" className="ltr" value={draft.fonts.body}
             onChange={(e) => set("fonts", { ...draft.fonts, body: e.target.value })} /></Field>
           <Field label={fa.brand.logo}>
             {draft.logo_url ? <img src={draft.logo_url} alt="" style={{ maxHeight: 64, display: "block", marginBottom: 8 }} /> : null}

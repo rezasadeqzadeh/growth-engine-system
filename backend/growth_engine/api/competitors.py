@@ -12,13 +12,14 @@ from ..errors import AppError, NotFound
 from ..jobs import queue
 from ..models import Competitor, CompetitorAnalysis, CompetitorPost, ContentIdea
 from ..services import competitors as service
+from ..textnorm import DigitStr
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/competitors", tags=["competitors"])
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 
 
 class CompetitorIn(BaseModel):
-    handle: str = Field(min_length=1, max_length=80)
+    handle: DigitStr = Field(min_length=1, max_length=80)
     kind: str = "direct"
     name: str = ""
     followers: int | None = None

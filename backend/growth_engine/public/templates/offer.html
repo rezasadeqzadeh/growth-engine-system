@@ -31,6 +31,15 @@
 <script>
 (function () {
   var form = document.getElementById("reg"); if (!form) return;
+  // Persian and Arabic digits -> ASCII in the phone and coupon fields (before the phone pattern check).
+  var toEn = function (v) {
+    return v.replace(/[\u06f0-\u06f9]/g, function (d) { return String(d.charCodeAt(0) - 0x06f0); })
+            .replace(/[\u0660-\u0669]/g, function (d) { return String(d.charCodeAt(0) - 0x0660); });
+  };
+  ["phone", "coupon"].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener("input", function () { var v = toEn(el.value); if (v !== el.value) el.value = v; });
+  });
   var sent = false;
   form.addEventListener("input", function () {
     if (sent) return; sent = true;

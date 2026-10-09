@@ -12,6 +12,7 @@ from ..auth.otp import PHONE_RE
 from ..config import get_settings
 from ..errors import AppError, NotFound
 from ..models import Coupon, Offer, Registration, Workspace
+from ..textnorm import ascii_digits
 from . import links, zarinpal
 
 
@@ -40,6 +41,7 @@ def price_after(offer: Offer, coupon: Coupon | None) -> int:
 
 def register(s: Session, ws: Workspace, offer: Offer, *, name: str, phone: str, city: str, media_consent: bool,
              coupon_code: str, visitor_id: str | None, first_touch_cookie: str | None) -> dict:
+    phone, coupon_code = ascii_digits(phone), ascii_digits(coupon_code)
     if not offer.active:
         raise AppError("offer_closed", "Registration is closed", 409)
     if not name.strip():

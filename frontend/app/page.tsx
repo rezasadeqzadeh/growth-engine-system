@@ -7,6 +7,7 @@ import { fa } from "@/lib/fa";
 import type { Workspace } from "@/lib/types";
 import { useAction, useLoad } from "@/components/hooks";
 import { Empty, ErrorLine, Field, Loading } from "@/components/ui";
+import { DigitInput } from "@/components/DigitInput";
 
 export default function Home() {
   const list = useLoad<{ workspaces: Workspace[] }>("/workspaces");
@@ -51,7 +52,7 @@ export default function Home() {
           </select>
         </Field>
         <Field label={fa.workspaces.slug}>
-          <input type="text" className="ltr" value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase())} />
+          <DigitInput type="text" className="ltr" value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase())} />
         </Field>
         <button className="btn" disabled={busy || name.length < 2} onClick={create}>{fa.workspaces.create}</button>
         <ErrorLine text={error} />

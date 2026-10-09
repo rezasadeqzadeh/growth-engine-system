@@ -7,6 +7,7 @@ import { fa } from "@/lib/fa";
 import { dateFa, num } from "@/lib/format";
 import { useAction, useLoad } from "@/components/hooks";
 import { Empty, ErrorLine, Field } from "@/components/ui";
+import { DigitInput } from "@/components/DigitInput";
 
 interface Agency { id: string; name: string; white_label: { display_name?: string; primary_color?: string; link_domain?: string } }
 interface Client { id: string; name: string; plan: string; pending: number; registrations_month: number; open_questions: number }
@@ -45,7 +46,7 @@ function AgencyView({ agency }: { agency: Agency }) {
           <h2>{fa.agency.whiteLabel}</h2>
           <Field label={fa.agency.displayName}><input type="text" value={label.display_name ?? ""} onChange={(e) => setLabel({ ...label, display_name: e.target.value })} /></Field>
           <Field label={fa.agency.color}><input type="color" value={label.primary_color ?? "#8b5e3c"} onChange={(e) => setLabel({ ...label, primary_color: e.target.value })} /></Field>
-          <Field label={fa.agency.domain}><input type="text" className="ltr" value={label.link_domain ?? ""} onChange={(e) => setLabel({ ...label, link_domain: e.target.value })} /></Field>
+          <Field label={fa.agency.domain}><DigitInput type="text" className="ltr" value={label.link_domain ?? ""} onChange={(e) => setLabel({ ...label, link_domain: e.target.value })} /></Field>
           <button className="btn" disabled={busy} onClick={() => run(() => api(`/agencies/${agency.id}/white-label`, "PATCH", label))}>{fa.common.save}</button>
           <p className="muted ltr">{typeof window !== "undefined" ? `${window.location.origin}/audit?a=${agency.id}` : ""}</p>
         </div>

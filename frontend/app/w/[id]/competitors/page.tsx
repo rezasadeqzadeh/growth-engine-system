@@ -7,6 +7,7 @@ import { num, pct } from "@/lib/format";
 import { useAction, useLoad } from "@/components/hooks";
 import { Empty, ErrorLine, Field, Loading } from "@/components/ui";
 import { useWorkspace } from "@/components/workspace";
+import { DigitInput } from "@/components/DigitInput";
 
 interface Competitor {
   id: string; handle: string; name: string; kind: string; followers: number | null; posts_per_week: number | null;
@@ -37,11 +38,11 @@ function Posts({ wsId, comp, onChange }: { wsId: string; comp: Competitor; onCha
       </table></div>
       <h3 style={{ marginTop: 12 }}>{fa.competitors.addPosts}</h3>
       <div className="grid2">
-        <Field label={fa.competitors.url}><input type="text" className="ltr" value={row.url} onChange={(e) => setRow({ ...row, url: e.target.value })} /></Field>
+        <Field label={fa.competitors.url}><DigitInput type="text" className="ltr" value={row.url} onChange={(e) => setRow({ ...row, url: e.target.value })} /></Field>
         <Field label={fa.competitors.caption}><input type="text" value={row.caption} onChange={(e) => setRow({ ...row, caption: e.target.value })} /></Field>
-        <Field label={fa.competitors.views}><input type="number" value={row.views} onChange={(e) => setRow({ ...row, views: e.target.value })} /></Field>
-        <Field label={fa.competitors.likes}><input type="number" value={row.likes} onChange={(e) => setRow({ ...row, likes: e.target.value })} /></Field>
-        <Field label={fa.competitors.comments}><input type="number" value={row.comments} onChange={(e) => setRow({ ...row, comments: e.target.value })} /></Field>
+        <Field label={fa.competitors.views}><DigitInput numeric value={row.views} onChange={(e) => setRow({ ...row, views: e.target.value })} /></Field>
+        <Field label={fa.competitors.likes}><DigitInput numeric value={row.likes} onChange={(e) => setRow({ ...row, likes: e.target.value })} /></Field>
+        <Field label={fa.competitors.comments}><DigitInput numeric value={row.comments} onChange={(e) => setRow({ ...row, comments: e.target.value })} /></Field>
         <Field label={fa.competitors.price}><input type="text" value={row.offer_price} onChange={(e) => setRow({ ...row, offer_price: e.target.value })} /></Field>
       </div>
       <button className="btn small" disabled={busy} onClick={() => run(async () => {
@@ -101,12 +102,12 @@ export default function CompetitorsPage() {
           ))}</tbody>
         </table>
         <div className="row" style={{ marginTop: 12 }}>
-          <input type="text" className="ltr" placeholder={fa.competitors.handle} value={form.handle} style={{ maxWidth: 220 }}
+          <DigitInput type="text" className="ltr" placeholder={fa.competitors.handle} value={form.handle} style={{ maxWidth: 220 }}
             onChange={(e) => setForm({ ...form, handle: e.target.value })} />
           <select value={form.kind} style={{ maxWidth: 180 }} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
             {Object.entries(fa.competitors.kinds).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
-          <input type="number" placeholder={fa.competitors.followers} value={form.followers} style={{ maxWidth: 160 }}
+          <DigitInput numeric placeholder={fa.competitors.followers} value={form.followers} style={{ maxWidth: 160 }}
             onChange={(e) => setForm({ ...form, followers: e.target.value })} />
           <button className="btn small" disabled={busy || !form.handle} onClick={() => run(async () => {
             await api(`/workspaces/${ws.id}/competitors`, "POST", { handle: form.handle, kind: form.kind,

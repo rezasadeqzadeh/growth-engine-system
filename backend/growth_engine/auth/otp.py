@@ -16,17 +16,10 @@ from .. import db
 from ..config import get_settings
 from ..errors import AppError
 from ..models import OtpCode, User
+from ..textnorm import ascii_digits
 from . import sms
 
 PHONE_RE = re.compile(r"^09[0-9]{9}$")
-# Persian (U+06F0..) and Arabic-Indic (U+0660..) digits, as phone keyboards type them.
-_DIGITS = str.maketrans({**{chr(0x06F0 + i): str(i) for i in range(10)}, **{chr(0x0660 + i): str(i) for i in range(10)}})
-
-
-def ascii_digits(value: str) -> str:
-    return value.translate(_DIGITS).strip()
-
-
 LOCAL_OTP = "0000"
 OTP_TTL = timedelta(minutes=5)
 MAX_ATTEMPTS = 5

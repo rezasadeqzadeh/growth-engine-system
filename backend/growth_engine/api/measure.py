@@ -14,12 +14,13 @@ from ..errors import AppError, NotFound
 from ..jobs import queue
 from ..models import Click, ContentIdea, Coupon, KeywordReply, Lead, Offer, Registration, Report, TrackedLink
 from ..services import links, metrics, offers
+from ..textnorm import DigitStr
 
 router = APIRouter(prefix="/workspaces/{workspace_id}", tags=["measure"])
 
 
 class OfferIn(BaseModel):
-    slug: str = Field(pattern=r"^[a-z0-9-]{2,60}$")
+    slug: DigitStr = Field(pattern=r"^[a-z0-9-]{2,60}$")
     title: str = Field(min_length=2, max_length=200)
     description: str = ""
     price_toman: int = Field(ge=0)
@@ -29,7 +30,7 @@ class OfferIn(BaseModel):
 
 
 class CouponIn(BaseModel):
-    code: str = Field(pattern=r"^[A-Za-z0-9_-]{2,30}$")
+    code: DigitStr = Field(pattern=r"^[A-Za-z0-9_-]{2,30}$")
     influencer: str | None = None
     discount_percent: int = Field(default=0, ge=0, le=100)
     active: bool = True

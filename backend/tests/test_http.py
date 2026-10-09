@@ -277,3 +277,17 @@ def test_persian_digits_work_for_phone_and_code(client):
     assert resp.status_code == 200 and resp.json()["user"]["phone"] == "09127778888"
     client.post("/api/auth/otp/send", json={"phone": "09127778889", "first_name": "R"})
     assert client.post("/api/auth/otp/verify", json={"phone": "09127778889", "code": "۱۲x۴"}).status_code == 401
+
+
+def test_persian_digits_are_converted_in_number_and_code_fields(client, workspace, monkeypatch):
+    """Phones, coupon codes and slugs typed with Persian or Arabic digits are accepted as ASCII."""
+    owner = _login(client, "09120000001")
+    resp = client.post(f"/api/workspaces/{workspace['id']}/coupons", headers=owner, json={"code": "SARA۱۰"})
+    assert resp.status_code == 200 and resp.json()["code"] == "SARA10"
+    resp = client.post(f"/api/workspaces/{workspace['id']}/offers", headers=owner,
+                       json={"slug": "trip-۱۴۰۵", "title": "سفر", "price_toman": 0})
+    assert resp.json()["slug"] == "trip-1405"
+    page = client.post("/o/boshrouyeh/trip-1405", data={"name": "علی", "phone": "٠٩١٥١٢٣٤٥٦٧", "coupon": "sara١٠"})
+    assert page.status_code == 200
+    with db.session_scope() as s:
+        assert s.scalar(select(Registration)).phone == "09151234567"

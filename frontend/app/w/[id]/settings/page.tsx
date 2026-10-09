@@ -7,6 +7,7 @@ import { num, toman } from "@/lib/format";
 import { useAction, useLoad } from "@/components/hooks";
 import { ErrorLine, Field } from "@/components/ui";
 import { useWorkspace } from "@/components/workspace";
+import { DigitInput } from "@/components/DigitInput";
 
 type Plans = Record<string, { price_toman: number; videos: number; ai_calls: number }>;
 interface Settings {
@@ -65,16 +66,16 @@ export default function SettingsPage() {
           <div className="row">
             {(["post", "reel", "story"] as const).map((k) => (
               <Field key={k} label={k === "post" ? fa.settings.posts : k === "reel" ? fa.settings.reels : fa.settings.stories}>
-                <input type="number" min={0} max={14} value={slots[k]} style={{ width: 80 }}
+                <DigitInput numeric min={0} max={14} value={slots[k]} style={{ width: 80 }}
                   onChange={(e) => setS({ ...s, weekly_slots: { ...slots, [k]: Number(e.target.value) } })} />
               </Field>
             ))}
           </div>
           <h3>{fa.settings.baseline}</h3>
           <div className="row">
-            <Field label={fa.settings.baseRegs}><input type="number" min={0} value={s.baseline?.registrations ?? ""}
+            <Field label={fa.settings.baseRegs}><DigitInput numeric min={0} value={s.baseline?.registrations ?? ""}
               onChange={(e) => setS({ ...s, baseline: { ...s.baseline, registrations: Number(e.target.value) } })} /></Field>
-            <Field label={fa.settings.baseHours}><input type="number" min={0} value={s.baseline?.admin_hours_per_week ?? ""}
+            <Field label={fa.settings.baseHours}><DigitInput numeric min={0} value={s.baseline?.admin_hours_per_week ?? ""}
               onChange={(e) => setS({ ...s, baseline: { ...s.baseline, admin_hours_per_week: Number(e.target.value) } })} /></Field>
           </div>
           <button className="btn" disabled={busy} onClick={save}>{fa.common.save}</button>

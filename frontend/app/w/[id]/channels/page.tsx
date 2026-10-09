@@ -8,6 +8,7 @@ import type { ChannelOut } from "@/lib/types";
 import { useAction, useLoad } from "@/components/hooks";
 import { ErrorLine, Field, Loading } from "@/components/ui";
 import { useWorkspace } from "@/components/workspace";
+import { DigitInput } from "@/components/DigitInput";
 
 // What each channel type asks for: [config keys, secret keys] (mirrors api/channels.py FIELDS).
 const FIELDS: Record<string, [string[], string[]]> = {
@@ -37,7 +38,7 @@ function ChannelForm({ wsId, channel, type, onSaved }: { wsId: string; channel?:
       <Field label={fa.channels.name}><input type="text" value={name} onChange={(e) => setName(e.target.value)} /></Field>
       {configKeys.map((k) => (
         <Field key={k} label={fa.channels.fields[k] ?? k}>
-          <input type="text" className="ltr" value={config[k] ?? ""} onChange={(e) => setConfig({ ...config, [k]: e.target.value })} />
+          <DigitInput type="text" className="ltr" value={config[k] ?? ""} onChange={(e) => setConfig({ ...config, [k]: e.target.value })} />
         </Field>
       ))}
       {secretKeys.map((k) => {

@@ -6,19 +6,20 @@ from ..auth import otp
 from ..auth.deps import current_user
 from ..db import get_session
 from ..models import User
+from ..textnorm import DigitStr
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 class SendIn(BaseModel):
-    phone: str
+    phone: DigitStr
     first_name: str | None = None
     last_name: str | None = None
 
 
 class VerifyIn(BaseModel):
-    phone: str
-    code: str
+    phone: DigitStr
+    code: DigitStr
 
 
 @router.post("/otp/send")

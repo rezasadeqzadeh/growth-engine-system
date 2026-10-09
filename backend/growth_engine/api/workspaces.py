@@ -9,6 +9,7 @@ from ..errors import AppError, NotFound
 from ..models import Membership, User, Workspace
 from ..services import agency as agency_service
 from ..services import usage, workspaces
+from ..textnorm import DigitStr
 
 router = APIRouter(tags=["workspaces"])
 
@@ -19,7 +20,7 @@ ROLES = ("owner", "operator", "approver", "sender")
 class WorkspaceIn(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     vertical: str
-    slug: str | None = Field(default=None, pattern=r"^[a-z0-9-]{3,60}$")
+    slug: DigitStr | None = Field(default=None, pattern=r"^[a-z0-9-]{3,60}$")
     agency_id: str | None = None
 
 

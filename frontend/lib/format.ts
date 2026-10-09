@@ -18,6 +18,11 @@ export const num = (n: number | null | undefined): string => (n === null || n ==
 export const toman = (n: number): string => `${faNumber.format(n)} ${fa.common.toman}`;
 export const pct = (n: number): string =>
   new Intl.NumberFormat("fa-IR", { style: "percent", maximumFractionDigits: 0 }).format(n / 100);
+/** Persian (U+06F0..) and Arabic-Indic (U+0660..) digits -> ASCII. */
+export const enDigits = (text: string): string =>
+  text.replace(/[\u06f0-\u06f9]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660));
+
 /** Split a comma list typed with Persian or Latin commas. */
 export const splitList = (text: string): string[] => text.split(/[\u060c,]/).map((x) => x.trim()).filter(Boolean);
 export const dateFa = (iso: string): string => faDate.format(new Date(iso));

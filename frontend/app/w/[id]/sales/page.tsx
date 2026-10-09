@@ -7,6 +7,7 @@ import { dateTimeFa, num, pct, toman } from "@/lib/format";
 import { useAction, useLoad } from "@/components/hooks";
 import { Empty, ErrorLine, Field, Tabs } from "@/components/ui";
 import { useWorkspace } from "@/components/workspace";
+import { DigitInput } from "@/components/DigitInput";
 
 type Section = "offers" | "registrations" | "coupons" | "links" | "keywords" | "leads" | "ideas";
 
@@ -28,9 +29,9 @@ function Offers({ wsId }: { wsId: string }) {
       </table></div>
       <div className="card grid2">
         <Field label={fa.sales.offerTitle}><input type="text" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} /></Field>
-        <Field label={fa.sales.slug}><input type="text" className="ltr" value={f.slug} onChange={(e) => setF({ ...f, slug: e.target.value.toLowerCase() })} /></Field>
-        <Field label={fa.sales.price}><input type="number" min={0} value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} /></Field>
-        <Field label={fa.sales.capacity}><input type="number" min={1} value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value })} /></Field>
+        <Field label={fa.sales.slug}><DigitInput type="text" className="ltr" value={f.slug} onChange={(e) => setF({ ...f, slug: e.target.value.toLowerCase() })} /></Field>
+        <Field label={fa.sales.price}><DigitInput numeric min={0} value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} /></Field>
+        <Field label={fa.sales.capacity}><DigitInput numeric min={1} value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value })} /></Field>
         <Field label={fa.sales.startsAt}><input type="datetime-local" value={f.starts} onChange={(e) => setF({ ...f, starts: e.target.value })} /></Field>
         <Field label={fa.sales.description}><textarea rows={3} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></Field>
         <div><button className="btn" disabled={busy || !f.title || !f.slug} onClick={() => run(async () => {
@@ -71,9 +72,9 @@ function Coupons({ wsId }: { wsId: string }) {
         <tr key={c.id}><td className="ltr">{c.code}</td><td>{c.influencer ?? "—"}</td><td>{pct(c.discount_percent)}</td></tr>
       ))}</tbody></table>
       <div className="row" style={{ marginTop: 12 }}>
-        <input type="text" className="ltr" placeholder={fa.sales.code} value={f.code} style={{ maxWidth: 160 }} onChange={(e) => setF({ ...f, code: e.target.value })} />
+        <DigitInput type="text" className="ltr" placeholder={fa.sales.code} value={f.code} style={{ maxWidth: 160 }} onChange={(e) => setF({ ...f, code: e.target.value })} />
         <input type="text" placeholder={fa.sales.influencer} value={f.influencer} style={{ maxWidth: 180 }} onChange={(e) => setF({ ...f, influencer: e.target.value })} />
-        <input type="number" placeholder={fa.sales.discount} value={f.discount} style={{ maxWidth: 120 }} onChange={(e) => setF({ ...f, discount: e.target.value })} />
+        <DigitInput numeric placeholder={fa.sales.discount} value={f.discount} style={{ maxWidth: 120 }} onChange={(e) => setF({ ...f, discount: e.target.value })} />
         <button className="btn small" disabled={busy || !f.code} onClick={() => run(async () => {
           await api(`/workspaces/${wsId}/coupons`, "POST", { code: f.code, influencer: f.influencer || null, discount_percent: Number(f.discount || 0) });
           setF({ code: "", influencer: "", discount: "" });
@@ -99,7 +100,7 @@ function Links({ wsId }: { wsId: string }) {
         ))}</tbody>
       </table>
       <div className="row" style={{ marginTop: 12 }}>
-        <input type="text" className="ltr" placeholder={fa.sales.target} value={f.target} style={{ flex: 2 }} onChange={(e) => setF({ ...f, target: e.target.value })} />
+        <DigitInput type="text" className="ltr" placeholder={fa.sales.target} value={f.target} style={{ flex: 2 }} onChange={(e) => setF({ ...f, target: e.target.value })} />
         <input type="text" placeholder={fa.sales.label} value={f.label} style={{ flex: 1 }} onChange={(e) => setF({ ...f, label: e.target.value })} />
         <input type="text" placeholder={fa.sales.influencer} value={f.influencer} style={{ flex: 1 }} onChange={(e) => setF({ ...f, influencer: e.target.value })} />
         <button className="btn small" disabled={busy || f.target.length < 8} onClick={() => run(async () => {

@@ -25,6 +25,7 @@ from ..ai.opencode import ImagePart
 from ..auth.otp import PHONE_RE
 from ..errors import AppError, NotFound
 from ..i18n import patterns
+from ..textnorm import ascii_digits
 from ..jobs import queue
 from ..models import Audit, Channel
 from . import instagram_api, storage, workspaces
@@ -99,7 +100,7 @@ def cap_conversion(points: int, data: dict) -> int:
 def create(s: Session, *, handle: str, vertical: str, phone: str, input_kind: str,
            screenshots: list[tuple[bytes, str]] | None = None, manual: dict | None = None,
            agency_id: str | None = None, channel_id: str | None = None) -> Audit:
-    handle = handle.strip().lstrip("@")
+    handle, phone = ascii_digits(handle).lstrip("@"), ascii_digits(phone)
     if not re.fullmatch(r"[A-Za-z0-9._]{1,30}", handle):
         raise AppError("handle_invalid", "Enter the page id, e.g. boshrouyeh_kooh")
     if not PHONE_RE.match(phone):

@@ -5,6 +5,7 @@ import { api, setToken } from "@/lib/api";
 import { fa } from "@/lib/fa";
 import { useAction } from "@/components/hooks";
 import { ErrorLine, Field } from "@/components/ui";
+import { DigitInput } from "@/components/DigitInput";
 
 export default function LoginPage() {
   const [phone, setPhone] = useState("");
@@ -30,7 +31,7 @@ export default function LoginPage() {
       <div className="card">
         <h1>{fa.login.title}</h1>
         <Field label={fa.login.phone}>
-          <input type="tel" className="ltr" inputMode="numeric" placeholder="09xxxxxxxxx" value={phone}
+          <DigitInput type="tel" className="ltr" inputMode="numeric" placeholder="09xxxxxxxxx" value={phone}
             onChange={(e) => setPhone(e.target.value.trim())} />
         </Field>
         {signup && !sent ? (
@@ -42,7 +43,7 @@ export default function LoginPage() {
         {sent ? (
           <>
             <Field label={fa.login.code}>
-              <input type="text" className="ltr" inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value.trim())} />
+              <DigitInput type="text" className="ltr" inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value.trim())} />
             </Field>
             <button className="btn" disabled={busy || !code} onClick={verify}>{fa.login.verify}</button>
             {process.env.NODE_ENV !== "production" ? <p className="muted">{fa.login.devHint}</p> : null}
