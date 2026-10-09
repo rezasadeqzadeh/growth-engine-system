@@ -37,6 +37,7 @@ export default function BrandPage() {
 
   if (kit.loading && !draft) return <Loading />;
   if (!draft) return <ErrorLine text={kit.error} />;
+  draft.colors = { ...draft.colors, primary: draft.colors?.primary ?? [], accent: draft.colors?.accent ?? [] };
   const set = <K extends keyof Kit>(key: K, value: Kit[K]) => { setDraft({ ...draft, [key]: value }); setSaved(false); };
   const done = async (k: Kit) => { kit.setData(k as Kit); await kit.reload(); await versions.reload(); setSaved(true); };
 
@@ -94,7 +95,7 @@ export default function BrandPage() {
             <input type="color" value={draft.colors.text} onChange={(e) => set("colors", { ...draft.colors, text: e.target.value })} /></div>
           <h3 style={{ marginTop: 12 }}>{fa.brand.preview}</h3>
           <div style={{ background: "#555", padding: 24, borderRadius: 10, textAlign: "center" }}>
-            <span style={{ background: draft.colors.primary[1], color: draft.colors.text, padding: "4px 10px", borderRadius: 4,
+            <span style={{ background: draft.colors.primary?.[1] ?? "#1f2a44", color: draft.colors.text ?? "#ffffff", padding: "4px 10px", borderRadius: 4,
                            fontFamily: draft.fonts.body, fontWeight: 900 }}>{fa.brand.previewText}</span>
           </div>
         </div>

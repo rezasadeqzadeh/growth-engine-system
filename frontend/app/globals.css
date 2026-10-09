@@ -101,8 +101,16 @@ pre.srt { background: var(--surface-2); padding: 12px; border-radius: 8px; white
 .cal .slot.attract { background: var(--attract); }
 .cal .slot.trust { background: var(--trust); }
 .cal .slot.convert { background: var(--convert); }
-.cal .slot.waiting { background: var(--waiting); }
+/* Waiting for raw footage keeps the goal colour; the dashed edge and ⏳ say it is waiting. */
+.cal .slot.waiting { outline: 2px dashed rgba(255, 255, 255, .9); outline-offset: -3px; opacity: .85; }
+.cal .slot { cursor: pointer; }
+.chip.goal-attract { background: var(--attract); color: #fff; }
+.chip.goal-trust { background: var(--trust); color: #fff; }
+.chip.goal-convert { background: var(--convert); color: #fff; }
+.overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+.dialog { width: 100%; max-width: 460px; margin: 0; }
 .cal .slot.story { background: var(--surface-2); color: var(--text); }
+.cal .slot.story.waiting { outline-color: var(--muted); }
 .cal .occ { color: var(--warn); font-size: .75rem; }
 @media (max-width: 760px) { .cal .day { min-height: 64px; } .cal .slot { font-size: .7rem; } }
 

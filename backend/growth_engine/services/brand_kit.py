@@ -91,4 +91,14 @@ async def generate(s: Session, workspace_id: str, answers: dict) -> BrandKit:
 
 
 def to_dict(kit: BrandKit) -> dict:
-    return {"version": kit.version, "answers": kit.answers, **{f: getattr(kit, f) for f in EDITABLE}}
+    out = {"version": kit.version, "answers": kit.answers or {}, **{f: getattr(kit, f) for f in EDITABLE}}
+    # A kit is always complete when it leaves: the first version of a new workspace
+    # was saved with no colours or fonts, and the brand page broke reading them.
+    out["colors"] = _clean_colors(kit.colors or {})
+    out["fonts"] = {**DEFAULT_FONTS, **(kit.fonts or {})}
+    out["tone"] = kit.tone or {}
+    out["bio"] = kit.bio or {}
+    for field in ("pillars", "glossary", "banned"):
+        out[field] = getattr(kit, field) or []
+    out["templates"] = kit.templates or {}
+    return out

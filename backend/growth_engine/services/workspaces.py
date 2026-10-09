@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from ..errors import AppError
 from ..models import Agency, BrandKit, Channel, Membership, TagRecipe, User, Workspace
-from . import usage
+from . import brand_kit, usage
 
 VERTICALS_DIR = Path(__file__).resolve().parent.parent / "data" / "verticals"
 
@@ -59,7 +59,8 @@ def create_workspace(s: Session, owner: User, name: str, vertical_name: str, slu
     s.flush()
     s.add(Membership(workspace_id=ws.id, user_id=owner.id, role="owner",
                      display_name=" ".join(filter(None, [owner.first_name, owner.last_name]))))
-    s.add(BrandKit(workspace_id=ws.id, version=1, pillars=template["pillars"]))
+    s.add(BrandKit(workspace_id=ws.id, version=1, pillars=template["pillars"],
+                   colors=dict(brand_kit.DEFAULT_COLORS), fonts=dict(brand_kit.DEFAULT_FONTS)))
     for recipe in template["recipes"]:
         s.add(TagRecipe(workspace_id=ws.id, **recipe))
     # The site is the owned channel every workspace has from day one.

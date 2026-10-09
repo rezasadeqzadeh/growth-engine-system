@@ -311,3 +311,12 @@ def test_asking_again_too_soon_says_how_long_to_wait(client):
     client.post("/api/auth/otp/send", json={"phone": "09121231234", "first_name": "A"})
     detail = client.post("/api/auth/otp/send", json={"phone": "09121231234"}).json()["detail"]
     assert detail["code"] == "otp_too_soon" and 100 < detail["retry_after"] <= 121
+
+
+def test_a_new_workspace_brand_kit_has_colours_and_fonts(client):
+    """The first kit was saved with no colours: the brand page crashed on colors.primary[1]."""
+    headers = _login(client, "09127770000")
+    ws = client.post("/api/workspaces", json={"name": "Shop", "vertical": "general"}, headers=headers).json()
+    kit = client.get(f"/api/workspaces/{ws['id']}/brand-kit", headers=headers).json()
+    assert len(kit["colors"]["primary"]) == 2 and kit["colors"]["text"].startswith("#")
+    assert kit["fonts"]["body"] and kit["fonts"]["heading"]
