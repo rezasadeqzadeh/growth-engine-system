@@ -31,6 +31,11 @@ def upgrade_to_head() -> None:
             cfg.attributes["connection"] = conn
             command.upgrade(cfg, "head")
             conn.commit()
+        except Exception:
+            # End the failed transaction first: unlocking inside it raised a second
+            # error ("current transaction is aborted") that hid the real one.
+            conn.rollback()
+            raise
         finally:
             if postgres:
                 conn.execute(text("SELECT pg_advisory_unlock(:k)"), {"k": LOCK_KEY})
