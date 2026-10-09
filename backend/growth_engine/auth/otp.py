@@ -18,7 +18,15 @@ from ..errors import AppError
 from ..models import OtpCode, User
 from . import sms
 
-PHONE_RE = re.compile(r"^09\d{9}$")
+PHONE_RE = re.compile(r"^09[0-9]{9}$")
+# Persian (U+06F0..) and Arabic-Indic (U+0660..) digits, as phone keyboards type them.
+_DIGITS = str.maketrans({**{chr(0x06F0 + i): str(i) for i in range(10)}, **{chr(0x0660 + i): str(i) for i in range(10)}})
+
+
+def ascii_digits(value: str) -> str:
+    return value.translate(_DIGITS).strip()
+
+
 LOCAL_OTP = "0000"
 OTP_TTL = timedelta(minutes=5)
 MAX_ATTEMPTS = 5
@@ -31,6 +39,7 @@ def _check_phone(phone: str) -> None:
 
 
 def send_otp(s: Session, phone: str, first_name: str | None = None, last_name: str | None = None) -> dict:
+    phone = ascii_digits(phone)
     _check_phone(phone)
     previous = s.get(OtpCode, phone)
     if previous and previous.expires_at - OTP_TTL > db.utcnow() - RESEND_AFTER:
@@ -52,13 +61,15 @@ def send_otp(s: Session, phone: str, first_name: str | None = None, last_name: s
 
 
 def verify_otp(s: Session, phone: str, code: str) -> dict:
+    phone, code = ascii_digits(phone), ascii_digits(code)
     _check_phone(phone)
     row = s.get(OtpCode, phone)
     if row is None:
         raise AppError("otp_invalid", "Verification code is incorrect", 401)
     if row.attempts >= MAX_ATTEMPTS:
         raise AppError("otp_locked", "Too many wrong codes; request a new one", 429)
-    if not secrets.compare_digest(row.code, code):
+    # Bytes: compare_digest refuses str with non-ASCII characters (it raised TypeError -> 500).
+    if not secrets.compare_digest(row.code.encode(), code.encode()):
         row.attempts += 1
         s.commit()
         raise AppError("otp_invalid", "Verification code is incorrect", 401)

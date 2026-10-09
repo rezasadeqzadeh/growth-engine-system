@@ -268,3 +268,12 @@ def test_extra_origins_come_from_cors_origins(monkeypatch):
     monkeypatch.setenv("CORS_ORIGINS", "https://a.test, https://b.test/")
     get_settings.cache_clear()
     assert get_settings().allowed_origins == ["https://a.test", "https://b.test"]
+
+
+def test_persian_digits_work_for_phone_and_code(client):
+    """The code typed as ۰۰۰۰ crashed sign-in with a 500 (non-ASCII compare)."""
+    assert client.post("/api/auth/otp/send", json={"phone": "۰۹۱۲۷۷۷۸۸۸۸", "first_name": "R"}).json()["sent"]
+    resp = client.post("/api/auth/otp/verify", json={"phone": "۰۹۱۲۷۷۷۸۸۸۸", "code": "۰۰۰۰"})
+    assert resp.status_code == 200 and resp.json()["user"]["phone"] == "09127778888"
+    client.post("/api/auth/otp/send", json={"phone": "09127778889", "first_name": "R"})
+    assert client.post("/api/auth/otp/verify", json={"phone": "09127778889", "code": "۱۲x۴"}).status_code == 401
