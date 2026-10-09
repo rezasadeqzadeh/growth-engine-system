@@ -23,6 +23,10 @@ export const enDigits = (text: string): string =>
   text.replace(/[\u06f0-\u06f9]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
     .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660));
 
+/** A URL slug as it is typed: lower-case a-z, 0-9 and single dashes. */
+export const toSlug = (text: string): string =>
+  enDigits(text).toLowerCase().replace(/[\s_]+/g, "-").replace(/[^a-z0-9-]/g, "").replace(/-{2,}/g, "-").replace(/^-/, "");
+
 /** Split a comma list typed with Persian or Latin commas. */
 export const splitList = (text: string): string[] => text.split(/[\u060c,]/).map((x) => x.trim()).filter(Boolean);
 export const dateFa = (iso: string): string => faDate.format(new Date(iso));

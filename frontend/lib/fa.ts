@@ -68,6 +68,7 @@ export const fa = {
     name: "نام کسب‌وکار",
     vertical: "صنف",
     slug: "آدرس انگلیسی (اختیاری)",
+    slugHint: "فقط حروف کوچک انگلیسی، عدد و خط تیره؛ حداقل ۳ حرف. خالی بگذارید تا خودکار ساخته شود.",
     none: "هنوز فضای کاری ندارید. اولین کسب‌وکار را بسازید.",
   },
   dashboard: {
@@ -405,6 +406,15 @@ export const fa = {
     retry: "اجرای دوباره",
     statuses: { failed: "ناموفق", queued: "در صف", running: "در حال اجرا", done: "انجام‌شده" } as Record<string, string>,
   },
+  // Request field names -> labels, for "check these fields" messages.
+  fields: {
+    name: "نام", slug: "آدرس انگلیسی", vertical: "صنف", phone: "شماره‌ی موبایل", code: "کد",
+    title: "عنوان", price_toman: "قیمت", capacity: "ظرفیت", starts_at: "تاریخ", description: "توضیح",
+    tag: "تگ", goal: "هدف", channels: "کانال‌ها", timing: "زمان انتشار", video_spec: "تنظیمات ویدیو",
+    discount_percent: "درصد تخفیف", target_url: "مقصد", keyword: "کلمه", reply_text: "جواب",
+    handle: "آیدی پیج", display_name: "نام", role: "نقش", text: "متن", year: "سال", month: "ماه",
+    plan: "پلن", instruction: "دستور", caption: "کپشن", day: "روز", score: "نمره",
+  } as Record<string, string>,
   errors: {
     generic: "مشکلی پیش آمد. دوباره تلاش کنید.",
     auth_required: "دوباره وارد شوید.",
@@ -430,6 +440,7 @@ export const fa = {
     slug_taken: "این آدرس گرفته شده است.",
     tag_exists: "این تگ وجود دارد.",
     validation_error: "یکی از خانه‌ها درست پر نشده است.",
+    validation_fields: "این خانه‌ها را بررسی کنید: {fields}",
     file_too_large: "فایل خیلی بزرگ است.",
     reply_not_supported: "این کانال جواب از پنل را پشتیبانی نمی‌کند؛ کپی کنید و در خود برنامه بفرستید.",
     payment_unavailable: "درگاه پرداخت جواب نمی‌دهد.",
@@ -444,6 +455,11 @@ export function fill(text: string, values: Record<string, string | number>): str
   return text.replace(/\{(\w+)\}/g, (_, k: string) => faDigits(String(values[k] ?? "")));
 }
 
-export function errorText(code: string): string {
+export function errorText(code: string, extra: Record<string, unknown> = {}): string {
+  const fields = Array.isArray(extra.fields) ? (extra.fields as string[]) : [];
+  if (code === "validation_error" && fields.length) {
+    const names = fields.map((f) => fa.fields[f] ?? f).join(fa.common.listSep);
+    return fill(fa.errors.validation_fields ?? "", { fields: names });
+  }
   return fa.errors[code] ?? fa.errors.generic ?? "";
 }

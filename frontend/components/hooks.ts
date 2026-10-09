@@ -20,7 +20,7 @@ export function useLoad<T>(path: string | null) {
         window.location.href = "/login";
         return;
       }
-      setError(e instanceof ApiError ? errorText(e.code) : errorText("generic"));
+      setError(e instanceof ApiError ? errorText(e.code, e.extra) : errorText("generic"));
     } finally {
       setLoading(false);
     }
@@ -41,7 +41,7 @@ export function useAction() {
     try {
       return await fn();
     } catch (e) {
-      setError(e instanceof ApiError ? errorText(e.code) : errorText("generic"));
+      setError(e instanceof ApiError ? errorText(e.code, e.extra) : errorText("generic"));
       return undefined;
     } finally {
       setBusy(false);

@@ -8,6 +8,7 @@ import type { Workspace } from "@/lib/types";
 import { useAction, useLoad } from "@/components/hooks";
 import { Empty, ErrorLine, Field, Loading } from "@/components/ui";
 import { DigitInput } from "@/components/DigitInput";
+import { toSlug } from "@/lib/format";
 
 export default function Home() {
   const list = useLoad<{ workspaces: Workspace[] }>("/workspaces");
@@ -18,7 +19,7 @@ export default function Home() {
   const { run, busy, error } = useAction();
 
   const create = () => run(async () => {
-    const ws = await api<Workspace>("/workspaces", "POST", { name, vertical, slug: slug || null });
+    const ws = await api<Workspace>("/workspaces", "POST", { name, vertical, slug: slug.replace(/-+$/, "") || null });
     window.location.href = `/w/${ws.id}`;
   });
 
@@ -52,9 +53,11 @@ export default function Home() {
           </select>
         </Field>
         <Field label={fa.workspaces.slug}>
-          <DigitInput type="text" className="ltr" value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase())} />
+          <DigitInput type="text" className="ltr" value={slug} placeholder="boshrouyeh-kooh"
+            onChange={(e) => setSlug(toSlug(e.target.value))} />
+          <span className="muted">{fa.workspaces.slugHint}</span>
         </Field>
-        <button className="btn" disabled={busy || name.length < 2} onClick={create}>{fa.workspaces.create}</button>
+        <button className="btn" disabled={busy || name.trim().length < 2 || (slug !== "" && slug.replace(/-+$/, "").length < 3)} onClick={create}>{fa.workspaces.create}</button>
         <ErrorLine text={error} />
       </div>
     </main>

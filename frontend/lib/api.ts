@@ -49,7 +49,12 @@ export async function api<T = unknown>(path: string, method = "GET", body?: Body
       const { code, message, ...extra } = detail as { code: string; message: string } & Record<string, unknown>;
       throw new ApiError(resp.status, code, message, extra);
     }
-    throw new ApiError(resp.status, resp.status === 422 ? "validation_error" : "request_failed", String(resp.status));
+    if (resp.status === 422 && Array.isArray(detail)) {
+      // FastAPI validation: [{loc: ["body", "slug"], ...}] -> the fields that were refused.
+      const fields = detail.map((d: { loc?: unknown[] }) => String(d.loc?.[d.loc.length - 1] ?? "")).filter(Boolean);
+      throw new ApiError(422, "validation_error", "invalid fields", { fields });
+    }
+    throw new ApiError(resp.status, "request_failed", String(resp.status));
   }
   return data as T;
 }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { fa } from "@/lib/fa";
-import { dateTimeFa, num, pct, toman } from "@/lib/format";
+import { dateTimeFa, num, pct, toman, toSlug } from "@/lib/format";
 import { useAction, useLoad } from "@/components/hooks";
 import { Empty, ErrorLine, Field, Tabs } from "@/components/ui";
 import { useWorkspace } from "@/components/workspace";
@@ -29,13 +29,13 @@ function Offers({ wsId }: { wsId: string }) {
       </table></div>
       <div className="card grid2">
         <Field label={fa.sales.offerTitle}><input type="text" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} /></Field>
-        <Field label={fa.sales.slug}><DigitInput type="text" className="ltr" value={f.slug} onChange={(e) => setF({ ...f, slug: e.target.value.toLowerCase() })} /></Field>
+        <Field label={fa.sales.slug}><DigitInput type="text" className="ltr" value={f.slug} onChange={(e) => setF({ ...f, slug: toSlug(e.target.value) })} /></Field>
         <Field label={fa.sales.price}><DigitInput numeric min={0} value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} /></Field>
         <Field label={fa.sales.capacity}><DigitInput numeric min={1} value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value })} /></Field>
         <Field label={fa.sales.startsAt}><input type="datetime-local" value={f.starts} onChange={(e) => setF({ ...f, starts: e.target.value })} /></Field>
         <Field label={fa.sales.description}><textarea rows={3} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></Field>
         <div><button className="btn" disabled={busy || !f.title || !f.slug} onClick={() => run(async () => {
-          await api(`/workspaces/${wsId}/offers`, "POST", { title: f.title, slug: f.slug, price_toman: Number(f.price || 0),
+          await api(`/workspaces/${wsId}/offers`, "POST", { title: f.title, slug: f.slug.replace(/-+$/, ""), price_toman: Number(f.price || 0),
             capacity: f.capacity ? Number(f.capacity) : null, starts_at: f.starts ? new Date(f.starts).toISOString() : null,
             description: f.description });
           setF({ title: "", slug: "", price: "", capacity: "", starts: "", description: "" });
