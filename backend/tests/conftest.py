@@ -53,6 +53,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setenv("MODEL_VISION", "opencode/vision-model")
     monkeypatch.setenv("SMS_WEBSERVICE_API_KEY", "")
     monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AUTO_MIGRATE", "false")  # tables come from create_all below
     get_settings.cache_clear()
     db.configure(url)
     if PG_URL:

@@ -230,3 +230,19 @@ def test_plan_purchase_comes_back_to_the_settings_page(client, workspace, monkey
     assert resp.status_code == 307
     assert resp.headers["location"] == f"https://panel.ge.test/w/{workspace['id']}/settings?result=paid"
     assert client.get(f"/api/workspaces/{workspace['id']}", headers=owner).json()["plan"] == "basic"
+
+
+def test_the_api_applies_pending_migrations_on_start(tmp_path, monkeypatch):
+    """A fresh database gets every table when the API starts; a second start is a no-op."""
+    from sqlalchemy import create_engine, inspect
+    from growth_engine.config import get_settings
+    url = f"sqlite:///{tmp_path}/fresh.db"
+    monkeypatch.setenv("DATABASE_URL", url)
+    monkeypatch.setenv("AUTO_MIGRATE", "true")
+    get_settings.cache_clear()
+    db.configure(url)
+    for _ in range(2):
+        with TestClient(create_app()) as c:
+            assert c.get("/api/health").json() == {"ok": True}
+    tables = set(inspect(create_engine(url)).get_table_names())
+    assert {"alembic_version", "users", "posts", "jobs"} <= tables

@@ -11,7 +11,7 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-if config.config_file_name is not None:
+if config.config_file_name is not None and config.attributes.get("configure_logger", True):
     fileConfig(config.config_file_name)
 
 # add your model's MetaData object here
@@ -62,6 +62,14 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    # growth_engine/migrate.py hands over its own connection (it holds the lock).
+    given = config.attributes.get("connection")
+    if given is not None:
+        context.configure(connection=given, target_metadata=target_metadata)
+        with context.begin_transaction():
+            context.run_migrations()
+        return
+
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

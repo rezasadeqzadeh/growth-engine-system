@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     environment: str = "development"
+    # Apply pending migrations when the API starts (tests turn it off).
+    auto_migrate: bool = True
     database_url: str = "sqlite:///./var/growth-engine.db"
     jwt_secret: str = DEV_SECRET
     token_ttl_days: int = 30

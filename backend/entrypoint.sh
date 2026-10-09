@@ -3,8 +3,8 @@
 set -e
 ROLE="${ROLE:-all}"
 
+# The API applies pending migrations itself on start (growth_engine/migrate.py).
 api() {
-  alembic upgrade head
   uvicorn growth_engine.main:app --host 0.0.0.0 --port "${PORT:-8000}" --proxy-headers --forwarded-allow-ips='*'
 }
 
@@ -14,7 +14,6 @@ case "$ROLE" in
   media) exec python -m growth_engine.jobs.runner media ;;
   scheduler) exec python -m growth_engine.jobs.scheduler ;;
   all)
-    alembic upgrade head
     uvicorn growth_engine.main:app --host 0.0.0.0 --port "${PORT:-8000}" --proxy-headers --forwarded-allow-ips='*' &
     python -m growth_engine.jobs.runner default &
     python -m growth_engine.jobs.runner media &
