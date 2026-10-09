@@ -95,6 +95,24 @@ async def profile(token: str) -> dict:
         "fields": "user_id,username,account_type,media_count,followers_count", "access_token": token})
 
 
+# Account totals for a period (Instagram Login API, metric_type=total_value).
+ACCOUNT_METRICS = ("reach", "views", "accounts_engaged", "total_interactions", "likes", "comments", "shares",
+                   "saves", "follows_and_unfollows", "profile_links_taps")
+
+
+async def account_insights(token: str, ig_user_id: str, since: int, until: int) -> dict[str, int]:
+    """Totals of ACCOUNT_METRICS between two unix times (at most 30 days apart)."""
+    data = await _request("GET", f"{GRAPH_V}/{ig_user_id}/insights", [token], params={
+        "metric": ",".join(ACCOUNT_METRICS), "period": "day", "metric_type": "total_value",
+        "since": since, "until": until, "access_token": token})
+    out: dict[str, int] = {}
+    for row in data.get("data", []):
+        total = (row.get("total_value") or {}).get("value")
+        if isinstance(total, (int, float)):
+            out[row.get("name", "")] = int(total)
+    return out
+
+
 async def recent_media(token: str, limit: int = 30) -> list[dict]:
     data = await _request("GET", f"{GRAPH_V}/me/media", [token], params={
         "fields": "id,caption,media_type,timestamp,like_count,comments_count,permalink", "limit": limit,

@@ -8,8 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .api import (
-    admin, agency, audits, auth, billing, brand, calendar, channels, competitors, feedback, measure, posts, recipes,
-    workspaces,
+    admin, agency, audits, auth, billing, brand, calendar, channels, competitors, feedback, instagram_stats, measure,
+    posts, recipes, workspaces,
 )
 from . import logs, migrate
 from .bots import webhook
@@ -44,7 +44,7 @@ def create_app() -> FastAPI:
                             content={"detail": {"code": exc.code, "message": exc.message, **exc.extra}})
 
     for module in (auth, workspaces, brand, recipes, channels, posts, calendar, feedback, competitors, measure,
-                   audits, agency, billing, admin):
+                   audits, agency, billing, admin, instagram_stats):
         app.include_router(module.router, prefix="/api")
     app.include_router(webhook.router)
     app.include_router(pages.router)

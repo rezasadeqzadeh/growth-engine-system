@@ -27,6 +27,7 @@ export const fa = {
   },
   nav: {
     dashboard: "داشبورد",
+    instagram: "آمار اینستاگرام",
     queue: "صف تأیید",
     calendar: "تقویم",
     brand: "کیت برند",
@@ -415,6 +416,25 @@ export const fa = {
     retry: "اجرای دوباره",
     statuses: { failed: "ناموفق", queued: "در صف", running: "در حال اجرا", done: "انجام‌شده" } as Record<string, string>,
   },
+  instagramStats: {
+    title: "آمار اینستاگرام",
+    connect: "اتصال اینستاگرام در کانال‌ها",
+    followers: "دنبال‌کننده",
+    mediaCount: "تعداد پست",
+    engagement: "نرخ تعامل",
+    engagementNote: "میانگین لایک و کامنت پست‌های اخیر نسبت به دنبال‌کننده‌ها",
+    periodTitle: "{days} روز گذشته",
+    periodUnavailable: "اینستاگرام آمار کلی حساب را نداد (دسترسی آمار یا داده‌ی کافی ندارد). پست‌ها و دنبال‌کننده‌ها پایین آمده‌اند.",
+    metrics: {
+      reach: "دسترسی (حساب‌های دیده)", views: "بازدید", accounts_engaged: "حساب‌های درگیر", total_interactions: "کل تعامل",
+      likes: "لایک", comments: "کامنت", shares: "اشتراک‌گذاری", saves: "ذخیره", follows_and_unfollows: "فالو و آنفالو",
+      profile_links_taps: "کلیک لینک‌های پروفایل",
+    } as Record<string, string>,
+    recentPosts: "پست‌های اخیر",
+    date: "تاریخ", type: "نوع", caption: "کپشن", likes: "لایک", comments: "کامنت", open: "دیدن",
+    types: { IMAGE: "عکس", VIDEO: "ویدیو", CAROUSEL_ALBUM: "چندتایی" } as Record<string, string>,
+    fetchedAt: "به‌روز شده: {time}",
+  },
   // Request field names -> labels, for "check these fields" messages.
   fields: {
     name: "نام", slug: "آدرس انگلیسی", vertical: "صنف", phone: "شماره‌ی موبایل", code: "کد",
@@ -443,6 +463,8 @@ export const fa = {
     bot_token_invalid: "توکن ربات کار نمی‌کند.",
     instagram_not_configured: "اتصال اینستاگرام روی سرور تنظیم نشده است.",
     instagram_not_connected: "اول اینستاگرام را وصل کنید.",
+    instagram_token_expired: "اتصال اینستاگرام منقضی شده؛ دوباره وصل کنید.",
+    instagram_unreachable: "اینستاگرام جواب نداد؛ کمی بعد دوباره امتحان کنید.",
     no_bot_recipient: "هنوز کسی از اعضا به ربات وصل نیست.",
     no_competitor_posts: "اول چند پست رقیب اضافه کنید.",
     audit_limit: "امروز به اندازه‌ی کافی آنالیز گرفته‌اید.",

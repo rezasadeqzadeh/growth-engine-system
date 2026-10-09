@@ -11,6 +11,7 @@ import { ErrorLine, Loading } from "@/components/ui";
 
 const NAV: { path: string; label: string }[] = [
   { path: "", label: fa.nav.dashboard },
+  { path: "/instagram", label: fa.nav.instagram },
   { path: "/queue", label: fa.nav.queue },
   { path: "/calendar", label: fa.nav.calendar },
   { path: "/brand", label: fa.nav.brand },

@@ -1,0 +1,37 @@
+title Instagram statistics page
+
+participant "Panel\nfrontend/app/w/[id]/instagram/page.tsx" as Panel
+participant "API\napi/instagram_stats.py\nstats()" as API
+participant "Access\nauth/deps.py\naccess()" as Access
+participant "Stats\nservices/instagram_stats.py\nlatest()" as Stats
+participant "IG client\nservices/instagram_api.py" as IG
+participant "Instagram\ngraph.instagram.com" as Graph
+
+== Request (members only) ==
+Panel->API: GET /api/workspaces/{id}/instagram/stats
+API->Access: bearer token + workspace membership
+alt no or bad token
+  Access-->Panel: 401 -> useLoad sends the visitor to /login
+end
+API->Stats: latest(s, workspace)
+alt no enabled instagram Channel with access_token and ig_user_id
+  Stats-->Panel: 409 instagram_not_connected (link to Channels)
+end
+
+== Profile and recent posts (required) ==
+Stats->IG: profile(token), recent_media(token, 12)
+IG->Graph: GET /me, GET /me/media
+alt InstagramAuthExpired (code 190)
+  Stats-->Panel: 409 instagram_token_expired
+else other InstagramError
+  Stats-->Panel: 502 instagram_unreachable (message redacted)
+end
+
+== Account totals, last 28 days (optional) ==
+Stats->IG: account_insights(token, ig_user_id, since, until)
+IG->Graph: GET /{ig_user_id}/insights metric_type=total_value
+alt InstagramError
+  note over Stats: insights permission missing or too little data:\nperiod = {}, period_error = insights_unavailable;\nthe page still shows profile and posts
+end
+Stats->Stats: engagement_rate = avg(likes + comments) / followers
+Stats-->Panel: username, followers, media_count, engagement_rate, period, posts, fetched_at
