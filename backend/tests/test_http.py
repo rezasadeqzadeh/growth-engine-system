@@ -246,3 +246,25 @@ def test_the_api_applies_pending_migrations_on_start(tmp_path, monkeypatch):
             assert c.get("/api/health").json() == {"ok": True}
     tables = set(inspect(create_engine(url)).get_table_names())
     assert {"alembic_version", "users", "posts", "jobs"} <= tables
+
+
+def test_the_panel_origin_passes_cors_and_others_are_refused(client):
+    """An empty PANEL_URL refused every browser call: OPTIONS answered 400."""
+    ok = client.options("/api/auth/otp/send", headers={"Origin": "https://panel.ge.test",
+                                                      "Access-Control-Request-Method": "POST"})
+    assert ok.status_code == 200
+    assert ok.headers["access-control-allow-origin"] == "https://panel.ge.test"
+    local = client.options("/api/auth/otp/send", headers={"Origin": "http://localhost:3000",
+                                                         "Access-Control-Request-Method": "POST"})
+    assert local.status_code == 200  # development: any localhost port
+    bad = client.options("/api/auth/otp/send", headers={"Origin": "https://evil.test",
+                                                       "Access-Control-Request-Method": "POST"})
+    assert bad.status_code == 400
+
+
+def test_extra_origins_come_from_cors_origins(monkeypatch):
+    from growth_engine.config import get_settings
+    monkeypatch.setenv("PANEL_URL", "")
+    monkeypatch.setenv("CORS_ORIGINS", "https://a.test, https://b.test/")
+    get_settings.cache_clear()
+    assert get_settings().allowed_origins == ["https://a.test", "https://b.test"]

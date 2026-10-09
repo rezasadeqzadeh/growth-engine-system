@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # media URLs handed to Instagram are built from it.
     public_base_url: str = "http://localhost:8000"
     panel_url: str = "http://localhost:3000"
+    # More browser origins allowed to call the API, comma-separated (PANEL_URL is always allowed).
+    cors_origins: str = ""
+    log_level: str = "INFO"
     storage_dir: Path = Path("./var/storage")
 
     # OpenCode is the only LLM provider.
@@ -63,6 +66,11 @@ class Settings(BaseSettings):
     @property
     def is_development(self) -> bool:
         return self.environment != "production"
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        origins = [self.panel_url, *self.cors_origins.split(",")]
+        return sorted({o.strip().rstrip("/") for o in origins if o and o.strip()})
 
     @property
     def superadmins(self) -> set[str]:

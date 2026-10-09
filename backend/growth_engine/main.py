@@ -11,7 +11,7 @@ from .api import (
     admin, agency, audits, auth, billing, brand, calendar, channels, competitors, feedback, measure, posts, recipes,
     workspaces,
 )
-from . import migrate
+from . import logs, migrate
 from .bots import webhook
 from .config import get_settings
 from .errors import AppError
@@ -28,11 +28,18 @@ async def lifespan(_: FastAPI):
 def create_app() -> FastAPI:
     get_settings().check_production()
     app = FastAPI(title="Growth Engine", docs_url="/api/docs", openapi_url="/api/openapi.json", lifespan=lifespan)
-    app.add_middleware(CORSMiddleware, allow_origins=[get_settings().panel_url], allow_credentials=True,
-                       allow_methods=["*"], allow_headers=["*"])
+    s = get_settings()
+    # In development any localhost port may call the API (the panel's dev server, a second checkout).
+    local = r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$" if s.is_development else None
+    app.add_middleware(CORSMiddleware, allow_origins=s.allowed_origins, allow_origin_regex=local,
+                       allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+    # Added last, so it is outermost and also logs what CORS refuses.
+    app.middleware("http")(logs.log_requests)
 
     @app.exception_handler(AppError)
-    async def app_error(_: Request, exc: AppError) -> JSONResponse:
+    async def app_error(request: Request, exc: AppError) -> JSONResponse:
+        logging.getLogger("growth_engine.http").info("%s %s: %s (%s)", request.method, request.url.path,
+                                                      exc.code, exc.status)
         return JSONResponse(status_code=exc.status, content={"detail": {"code": exc.code, "message": exc.message}})
 
     for module in (auth, workspaces, brand, recipes, channels, posts, calendar, feedback, competitors, measure,
@@ -48,5 +55,5 @@ def create_app() -> FastAPI:
     return app
 
 
-logging.basicConfig(level=logging.INFO)
+logs.setup()
 app = create_app()
