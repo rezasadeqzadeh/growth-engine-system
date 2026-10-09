@@ -1,0 +1,22 @@
+Metadata-Version: 2.4
+Name: growth-engine
+Version: 0.1.0
+Requires-Python: >=3.12
+Requires-Dist: fastapi>=0.115
+Requires-Dist: uvicorn[standard]>=0.30
+Requires-Dist: sqlalchemy>=2.0
+Requires-Dist: alembic>=1.13
+Requires-Dist: pydantic-settings>=2.4
+Requires-Dist: httpx>=0.27
+Requires-Dist: pyjwt>=2.9
+Requires-Dist: jdatetime>=5.0
+Requires-Dist: jinja2>=3.1
+Requires-Dist: python-multipart>=0.0.9
+Requires-Dist: psycopg[binary]>=3.2
+Provides-Extra: media
+Requires-Dist: faster-whisper>=1.0; extra == "media"
+Requires-Dist: opencv-python-headless>=4.10; extra == "media"
+Provides-Extra: test
+Requires-Dist: pytest>=8; extra == "test"
+Requires-Dist: pytest-asyncio>=0.24; extra == "test"
+Requires-Dist: respx>=0.21; extra == "test"
