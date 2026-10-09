@@ -291,3 +291,23 @@ def test_persian_digits_are_converted_in_number_and_code_fields(client, workspac
     assert page.status_code == 200
     with db.session_scope() as s:
         assert s.scalar(select(Registration)).phone == "09151234567"
+
+
+def test_an_unknown_phone_signs_up_with_the_same_code(client):
+    """Sign-in for a new phone said account_not_found, and asking for a sign-up code
+    was then refused for a minute (otp_too_soon): no account could be made."""
+    client.post("/api/auth/otp/send", json={"phone": "09129990000"})
+    first = client.post("/api/auth/otp/verify", json={"phone": "09129990000", "code": "0000"})
+    assert first.json()["detail"]["code"] == "account_not_found"
+    second = client.post("/api/auth/otp/verify", json={"phone": "09129990000", "code": "0000",
+                                                       "first_name": "رضا", "last_name": "ص"})
+    assert second.status_code == 200 and second.json()["user"]["first_name"] == "رضا"
+    with db.session_scope() as s:
+        from growth_engine.models import User
+        assert s.scalar(select(User).where(User.phone == "09129990000")) is not None
+
+
+def test_asking_again_too_soon_says_how_long_to_wait(client):
+    client.post("/api/auth/otp/send", json={"phone": "09121231234", "first_name": "A"})
+    detail = client.post("/api/auth/otp/send", json={"phone": "09121231234"}).json()["detail"]
+    assert detail["code"] == "otp_too_soon" and 100 < detail["retry_after"] <= 121

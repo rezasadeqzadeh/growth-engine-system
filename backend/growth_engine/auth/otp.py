@@ -23,7 +23,7 @@ PHONE_RE = re.compile(r"^09[0-9]{9}$")
 LOCAL_OTP = "0000"
 OTP_TTL = timedelta(minutes=5)
 MAX_ATTEMPTS = 5
-RESEND_AFTER = timedelta(seconds=60)
+RESEND_AFTER = timedelta(seconds=120)  # the panel counts this down (AuthForm.tsx)
 
 
 def _check_phone(phone: str) -> None:
@@ -35,8 +35,12 @@ def send_otp(s: Session, phone: str, first_name: str | None = None, last_name: s
     phone = ascii_digits(phone)
     _check_phone(phone)
     previous = s.get(OtpCode, phone)
-    if previous and previous.expires_at - OTP_TTL > db.utcnow() - RESEND_AFTER:
-        raise AppError("otp_too_soon", "Wait a minute before asking for another code", 429)
+    if previous:
+        wait = (previous.expires_at - OTP_TTL + RESEND_AFTER - db.utcnow()).total_seconds()
+        if wait > 0:
+            # The earlier code is still valid: the panel goes to the code field and counts this down.
+            raise AppError("otp_too_soon", "A code was sent recently; enter it or wait to resend", 429,
+                           {"retry_after": int(wait) + 1})
     if sms.is_configured():
         code = f"{secrets.randbelow(100000):05d}"
         if not sms.send_otp(phone, code):
@@ -53,7 +57,9 @@ def send_otp(s: Session, phone: str, first_name: str | None = None, last_name: s
     return {"sent": True, "via_sms": via_sms}
 
 
-def verify_otp(s: Session, phone: str, code: str) -> dict:
+def verify_otp(s: Session, phone: str, code: str, first_name: str | None = None, last_name: str | None = None) -> dict:
+    """A name given here signs up with the same code: after `account_not_found`
+    the panel asks for the name and verifies again, with no second SMS."""
     phone, code = ascii_digits(phone), ascii_digits(code)
     _check_phone(phone)
     row = s.get(OtpCode, phone)
@@ -71,6 +77,8 @@ def verify_otp(s: Session, phone: str, code: str) -> dict:
 
     user = s.scalar(select(User).where(User.phone == phone))
     if user is None:
+        if first_name or last_name:
+            row.pending_first_name, row.pending_last_name = first_name, last_name
         if not (row.pending_first_name or row.pending_last_name):
             raise AppError("account_not_found", "No account for this phone; sign up first", 404)
         user = User(phone=phone, first_name=row.pending_first_name, last_name=row.pending_last_name)

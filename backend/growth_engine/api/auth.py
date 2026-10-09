@@ -20,6 +20,8 @@ class SendIn(BaseModel):
 class VerifyIn(BaseModel):
     phone: DigitStr
     code: DigitStr
+    first_name: str | None = None
+    last_name: str | None = None
 
 
 @router.post("/otp/send")
@@ -29,7 +31,7 @@ def send(body: SendIn, s: Session = Depends(get_session)) -> dict:
 
 @router.post("/otp/verify")
 def verify(body: VerifyIn, s: Session = Depends(get_session)) -> dict:
-    return otp.verify_otp(s, body.phone, body.code)
+    return otp.verify_otp(s, body.phone, body.code, body.first_name, body.last_name)
 
 
 @router.get("/me")

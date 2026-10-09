@@ -6,7 +6,8 @@ export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:80
 const TOKEN_KEY = "ge_token";
 
 export class ApiError extends Error {
-  constructor(public status: number, public code: string, message: string) {
+  constructor(public status: number, public code: string, message: string,
+              public extra: Record<string, unknown> = {}) {
     super(message);
   }
 }
@@ -45,8 +46,8 @@ export async function api<T = unknown>(path: string, method = "GET", body?: Body
   if (!resp.ok) {
     const detail = (data as { detail?: unknown }).detail;
     if (detail && typeof detail === "object" && "code" in detail) {
-      const d = detail as { code: string; message: string };
-      throw new ApiError(resp.status, d.code, d.message);
+      const { code, message, ...extra } = detail as { code: string; message: string } & Record<string, unknown>;
+      throw new ApiError(resp.status, code, message, extra);
     }
     throw new ApiError(resp.status, resp.status === 422 ? "validation_error" : "request_failed", String(resp.status));
   }

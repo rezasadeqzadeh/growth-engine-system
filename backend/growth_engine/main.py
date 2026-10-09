@@ -40,7 +40,8 @@ def create_app() -> FastAPI:
     async def app_error(request: Request, exc: AppError) -> JSONResponse:
         logging.getLogger("growth_engine.http").info("%s %s: %s (%s)", request.method, request.url.path,
                                                       exc.code, exc.status)
-        return JSONResponse(status_code=exc.status, content={"detail": {"code": exc.code, "message": exc.message}})
+        return JSONResponse(status_code=exc.status,
+                            content={"detail": {"code": exc.code, "message": exc.message, **exc.extra}})
 
     for module in (auth, workspaces, brand, recipes, channels, posts, calendar, feedback, competitors, measure,
                    audits, agency, billing, admin):
