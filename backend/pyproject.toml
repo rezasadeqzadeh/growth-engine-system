@@ -21,8 +21,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# The media worker only: speech to text and face detection.
-media = ["faster-whisper>=1.0", "opencv-python-headless>=4.10"]
+# The media worker only: speech to text.
+media = ["faster-whisper>=1.0"]
 test = ["pytest>=8", "pytest-asyncio>=0.24", "respx>=0.21"]
 
 [tool.pytest.ini_options]

@@ -48,8 +48,6 @@ def media_stubs(monkeypatch, tmp_path):
     monkeypatch.setattr(ffmpeg, "extract_audio", lambda src, dst: dst.write_bytes(b"wav"))
     monkeypatch.setattr(ffmpeg, "detect_silences", lambda p, d: [(40.0, 45.0)])
     monkeypatch.setattr(render, "render", fake_render)
-    monkeypatch.setattr(render, "sample_frames", lambda *a, **k: [])
-    monkeypatch.setattr(pipeline.faces, "count_faces", lambda frames: 2)
     monkeypatch.setattr(pipeline.transcribe, "transcribe", lambda audio, glossary=None: {"segments": [
         {"start": 1.0, "end": 3.0, "text": "از قله‌ی شطری", "words": []}]})
 
@@ -121,7 +119,7 @@ async def test_a_tagged_video_becomes_a_draft_for_every_channel_of_its_recipe(wo
         assert link.code.startswith("t") and f"https://ge.test/b/{link.code}" in telegram.caption
         assert link.tag == "گزارش_برنامه" and link.post_id == post_id
         checks = {q["check"]: q for q in post.qc}
-        assert checks["faces"]["message"] == "qc.faces_consent"
+        assert checks["faces"]["message"] == "qc.faces_unknown"  # no face detection: the approver looks
         assert s.scalar(select(Job).where(Job.kind == "send_approval_card"))
 
 

@@ -106,10 +106,6 @@ def cut_and_frame(src: Path, dst: Path, ranges: list[tuple[float, float]], aspec
          "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(dst)])
 
 
-def frame_at(src: Path, dst: Path, second: float) -> None:
-    run(["ffmpeg", "-y", "-hide_banner", "-ss", f"{second:.2f}", "-i", str(src), "-frames:v", "1", str(dst)])
-
-
 def _fill_frame(w: int, h: int) -> str:
     # The frame filled for the aspect: blurred copy behind, the whole picture in front.
     return (f"split[bgsrc][fgsrc];[bgsrc]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},"

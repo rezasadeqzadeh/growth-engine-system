@@ -28,7 +28,7 @@ def requalify(s, post: Post) -> None:
     previous = {q["check"]: q for q in post.qc or []}
     post.qc = quality.check(rows, glossary=kit.glossary or [], banned=kit.banned or [],
                             cta=recipe.cta if recipe else "", needs_link=bool(recipe and recipe.goal == "convert"),
-                            faces=asset.faces_detected if asset else None,
+                            faces=None,  # faces are not detected; the card asks the approver to look
                             uses_music="music" in previous, music_licensed="music" not in previous)
 
 

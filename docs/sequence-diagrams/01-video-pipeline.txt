@@ -25,7 +25,7 @@ opt no tag
 Pipe->AI: guess_tag
 end
 Pipe->AI: caption (all channels) + hashtags
-Pipe->Pipe: silences, plan_renders (short, story, full), ASS/SRT, cover, faces
+Pipe->Pipe: silences, plan_renders (short, story, full), ASS/SRT, cover
 Pipe->Pipe: variants per connected channel, tracked link each, QC
 Pipe->Card: send_approval_card
 Card->Admin: preview + card (approve / edit / time / reject / fix subtitle)

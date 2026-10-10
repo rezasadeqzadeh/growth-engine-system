@@ -1,7 +1,7 @@
 """The tag-driven video pipeline (runs in the media worker).
 
 download -> transcribe -> glossary fix -> (guess tag) -> copy -> smart cut,
-subtitles, cover, logo -> faces -> variants with tracked links -> QC ->
+subtitles, cover, logo -> variants with tracked links -> QC ->
 pending, and the approval card goes to the bot.
 """
 
@@ -23,7 +23,7 @@ from ..bots.api import BotApi
 from ..config import get_settings
 from ..i18n import fa_digits, t
 from ..jobs import queue
-from ..media import faces, ffmpeg, glossary, render, transcribe
+from ..media import ffmpeg, glossary, render, transcribe
 from ..models import BrandKit, Channel, MediaAsset, Offer, Post, PostVariant, Registration, TagRecipe, Workspace
 from . import brand_kit, captions, links, posts, quality, storage, usage
 from .timing import TEHRAN
@@ -198,9 +198,6 @@ async def process_video(payload: dict) -> None:
                                 texts.get("cover_title") or post.title, music)
             steps.done("render (ffmpeg)", ", ".join(f"{k}={v:.0f}s" for k, v in out.durations.items()))
             post.output_duration_s = out.durations.get("short")
-            face_count = faces.count_faces(render.sample_frames(src, work, probe.duration))
-            asset.faces_detected = face_count or 0
-            steps.done("faces", str(face_count))
 
             keys = {name: storage.save_bytes(storage.new_key(ws.id, "out", path.suffix), path.read_bytes())
                     for name, path in out.files.items() if name != "frame"}
@@ -224,7 +221,7 @@ async def process_video(payload: dict) -> None:
                                 "has_link": url in text_parts["caption"]})
             post.qc = quality.check(checked, glossary=kit.glossary or [], banned=kit.banned or [],
                                     cta=recipe.cta if recipe else "", needs_link=bool(recipe and recipe.goal == "convert"),
-                                    faces=face_count, uses_music=bool(spec.get("music")),
+                                    faces=None, uses_music=bool(spec.get("music")),
                                     music_licensed=music is not None)
             post.status, post.error = "pending", None
             steps.done("variants + quality check", f"{len(checked)} variants: "

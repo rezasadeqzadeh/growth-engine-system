@@ -94,11 +94,3 @@ def render(src: Path, workdir: Path, probe: ffmpeg.Probe, specs: list[RenderSpec
     out.files["frame"] = frame
     return out
 
-
-def sample_frames(src: Path, workdir: Path, duration: float, count: int = 5) -> list[Path]:
-    frames = []
-    for i in range(count):
-        path = workdir / f"sample{i}.jpg"
-        ffmpeg.frame_at(src, path, duration * (i + 1) / (count + 1))
-        frames.append(path)
-    return frames
