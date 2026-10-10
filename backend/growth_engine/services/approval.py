@@ -78,8 +78,8 @@ async def send_approval_card(payload: dict) -> None:
                 sent.append({"platform": bot.type, "channel_id": bot.id, "chat_id": chat,
                              "message_id": str(msg.get("message_id"))})
             except BotApiError as exc:
-                logger.warning("[approval] post %s: card to %s chat %s failed: %s", post.id[:8], bot.type, chat,
-                               redact(exc, bot.secrets()))
+                logger.warning("[approval] post %s: card to %s chat %s failed: %s%s", post.id[:8], bot.type, chat,
+                               redact(exc, bot.secrets()), notify.explain(exc))
                 continue
             logger.info("[approval] post %s: card sent to %s chat %s%s", post.id[:8], bot.type, chat,
                         " with the video" if preview and preview.video_key else "")
@@ -115,8 +115,12 @@ async def send_handoff(payload: dict) -> None:
         post = s.get(Post, variant.post_id)
         url = f"{get_settings().public_base_url}/h/{handoff_token(pub.id)}"
         key = "handoff.story" if variant.kind == "story" else "handoff.reel"
-        keyboard = [[{"text": t("btn.open_handoff"), "url": url}]]
-        await notify.text(s, post.workspace_id, t(key, title=post.title), notify.APPROVERS, keyboard)
+        message = t(key, title=post.title)
+        if notify.button_url_ok(url):
+            await notify.text(s, post.workspace_id, message, notify.APPROVERS,
+                              [[{"text": t("btn.open_handoff"), "url": url}]])
+        else:  # Telegram/Bale refuse buttons to localhost (a local run): the link goes in the text
+            await notify.text(s, post.workspace_id, f"{message}\n{url}", notify.APPROVERS)
 
 
 async def send_srt(payload: dict) -> None:

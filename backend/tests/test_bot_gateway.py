@@ -221,3 +221,19 @@ async def test_webhook_refuses_a_wrong_secret(workspace, sent):
     assert client.post(f"/bots/{workspace['bot_id']}/hook", json=body).json() == {"ok": True}
     with db.session_scope() as s:
         assert s.scalar(select(Feedback)) is not None
+
+
+async def test_a_member_linked_from_a_group_is_told_to_start_the_bot_privately(workspace, sent):
+    with db.session_scope() as s:
+        s.add(Membership(workspace_id=workspace["id"], display_name="Coach", role="approver", link_code="AB12CD34"))
+    msg = _message(4242, "/start AB12CD34", chat_id=-100999, chat_type="group")
+    await gateway.handle_update(workspace["bot_id"], _update(message=msg))
+    assert any("Start" in text for text in _texts(sent))
+
+
+def test_bot_buttons_need_a_public_address():
+    from growth_engine.services import notify
+
+    assert notify.button_url_ok("https://ge.test/h/x")
+    assert not notify.button_url_ok("http://localhost:8000/h/x")
+    assert not notify.button_url_ok("http://127.0.0.1:8000/h/x")

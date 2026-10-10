@@ -203,6 +203,9 @@ def _bind(s: Session, channel: Channel, sender: dict, text: str, chat_id: str, r
         member.telegram_user_id = str(sender.get("id"))
     member.link_code = None
     reply.say(chat_id, t("bot.bound", name=member.display_name or sender.get("first_name", "")))
+    if chat_id != str(sender.get("id")):
+        # Linked from a group: the bot still may not write to this person until they press Start in private.
+        reply.say(chat_id, t("bot.bound_open_private"))
 
 
 def _on_video(s, channel, ws, member, msg, video, chat_id, reply) -> None:

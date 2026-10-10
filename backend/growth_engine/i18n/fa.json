@@ -101,6 +101,7 @@
   "calendar.tone_silence": "روز سوگواری؛ چیزی منتشر نمی‌شود",
   "calendar.request": "📋 سفارش محتوا برای {day}: یک فیلم {seconds} ثانیه‌ای لازم داریم — {title} — با تگ #{tag}",
 
+  "bot.bound_open_private": "📩 برای دریافت کارت‌های تأیید و پیام‌ها، یک بار ربات را در چت خصوصی باز کنید و Start را بزنید.",
   "competitors.order": "📋 سفارش فیلم از تحلیل رقبا: {text} — با تگ #{tag}",
   "feedback.criticism_alert": "⚠ انتقاد از {author} در {channel}:\n«{text}»\nجواب خودکار داده نشد.",
 

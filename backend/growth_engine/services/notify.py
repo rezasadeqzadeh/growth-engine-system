@@ -6,6 +6,7 @@ A member is reachable on a platform once they bound their account with
 
 import logging
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -35,6 +36,20 @@ def recipients(s: Session, workspace_id: str, roles: tuple[str, ...]) -> list[tu
     return out
 
 
+def button_url_ok(url: str) -> bool:
+    """Bot buttons need a public address: Telegram refuses localhost and bare IPs as "Wrong HTTP URL"."""
+    host = urlsplit(url).hostname or ""
+    return url.startswith(("http://", "https://")) and "." in host and not host.replace(".", "").isdigit()
+
+
+def explain(exc: BotApiError) -> str:
+    """What the person can do about a refused message."""
+    text = str(exc)
+    if "can't initiate conversation" in text or "bot was blocked" in text:
+        return " (this person must open a private chat with the bot and press Start)"
+    return ""
+
+
 APPROVERS = ("owner", "operator", "approver")
 MANAGERS = ("owner", "operator")
 
@@ -49,7 +64,7 @@ async def text(s: Session, workspace_id: str, message: str, roles: tuple[str, ..
             sent.append({"platform": bot.type, "channel_id": bot.id, "chat_id": chat,
                          "message_id": str(result.get("message_id"))})
         except BotApiError as exc:
-            logger.warning("[notify] %s", exc)
+            logger.warning("[notify] %s chat %s: %s%s", bot.type, chat, exc, explain(exc))
     return sent
 
 
@@ -58,4 +73,4 @@ async def document(s: Session, workspace_id: str, path: Path, caption: str, role
         try:
             await BotApi(bot.type, bot.credentials["bot_token"]).send_document(chat, path, caption)
         except BotApiError as exc:
-            logger.warning("[notify] %s", exc)
+            logger.warning("[notify] %s chat %s: %s%s", bot.type, chat, exc, explain(exc))
