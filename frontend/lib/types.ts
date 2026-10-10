@@ -22,7 +22,11 @@ export interface Variant {
   publications: { status: string; url: string | null; error: string | null; at: string | null }[];
 }
 
-export interface PostDetail extends PostSummary { raw_note: string; variants: Variant[]; subtitles: string | null; faces: number }
+export interface SubtitleLine { start: number; end: number; text: string }
+
+export interface PostDetail extends PostSummary {
+  raw_note: string; variants: Variant[]; subtitles: string | null; subtitle_lines: SubtitleLine[]; faces: number;
+}
 
 export interface Recipe {
   id?: string; tag: string; goal: string; pillar: string | null; caption_style: string; cta: string;

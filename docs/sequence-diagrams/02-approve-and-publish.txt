@@ -6,6 +6,11 @@ participant "Worker\nservices/publishing.py\npublish_variant()" as Pub
 participant "Adapter\nchannels/*.py\npublish()" as Ad
 participant "Admin\nhandoff page /h" as H
 
+opt edit before approving (panel queue; Save is its own button, Approve waits until nothing is unsaved)
+A->Posts: PUT variants/{id}: title, caption, hashtags -> requalify (QC again); post stays pending
+A->Posts: PUT subtitles: lines -> transcript rewritten (edited lines: words spread over the line's time)
+Posts->Pub: process_video rerender (media worker) keeps each variant's edited texts and tracked link -> pending again
+end
 A->Posts: approve (or pick a time)
 Posts->Posts: publish time from recipe timing; calendar.attach_post
 Posts->Pub: one publish_variant job per variant at run_at

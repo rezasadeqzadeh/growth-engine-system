@@ -24,7 +24,9 @@ from ..config import get_settings
 from ..i18n import fa_digits, t
 from ..jobs import queue
 from ..media import ffmpeg, glossary, render, transcribe
-from ..models import BrandKit, Channel, MediaAsset, Offer, Post, PostVariant, Registration, TagRecipe, Workspace
+from ..models import (
+    BrandKit, Channel, MediaAsset, Offer, Post, PostVariant, Registration, TagRecipe, TrackedLink, Workspace,
+)
 from . import brand_kit, captions, links, posts, quality, storage, usage
 from .timing import TEHRAN
 
@@ -202,7 +204,11 @@ async def process_video(payload: dict) -> None:
             keys = {name: storage.save_bytes(storage.new_key(ws.id, "out", path.suffix), path.read_bytes())
                     for name, path in out.files.items() if name != "frame"}
             channels = list(s.scalars(select(Channel).where(Channel.workspace_id == ws.id)))
+            # A re-render (subtitles edited) keeps what people already wrote and the links they may have shared.
+            kept: dict[tuple[str, str], PostVariant] = {}
             for old in s.scalars(select(PostVariant).where(PostVariant.post_id == post.id)):
+                if rerender:
+                    kept[(old.channel_id, old.kind)] = old
                 s.delete(old)
             s.flush()
             destination = links.destination_for(s, post)
@@ -210,10 +216,14 @@ async def process_video(payload: dict) -> None:
             checked = []
             for channel, kind, file in plan_variants(recipe.channels if recipe else [c.type for c in channels],
                                                      channels, set(keys)):
-                link = links.create(s, ws.id, destination, channel_type=channel.type, post_id=post.id, tag=post.tag,
-                                    prefix_key="story" if kind == "story" else channel.type)
+                old = kept.get((channel.id, kind))
+                link = s.get(TrackedLink, old.tracked_link_id) if old and old.tracked_link_id else None
+                if link is None:
+                    link = links.create(s, ws.id, destination, channel_type=channel.type, post_id=post.id,
+                                        tag=post.tag, prefix_key="story" if kind == "story" else channel.type)
                 url = links.short_url(link, link_base)
-                text_parts = captions.compose(texts, channel.type, kind, url)
+                text_parts = ({"title": old.title, "caption": old.caption, "tags": list(old.tags or [])} if old
+                              else captions.compose(texts, channel.type, kind, url))
                 s.add(PostVariant(post_id=post.id, channel_id=channel.id, kind=kind, video_key=keys[file],
                                   cover_key=keys.get("cover"), srt_key=keys.get("srt") if kind == "full" else None,
                                   tracked_link_id=link.id, **text_parts))

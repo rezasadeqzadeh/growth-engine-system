@@ -41,6 +41,17 @@ class InstructionIn(BaseModel):
 class CaptionIn(BaseModel):
     caption: str = Field(max_length=20000)
     title: str | None = None
+    tags: list[str] | None = Field(default=None, max_length=60)
+
+
+class SubtitleLineIn(BaseModel):
+    start: float
+    end: float
+    text: str = Field(max_length=300)
+
+
+class SubtitlesIn(BaseModel):
+    lines: list[SubtitleLineIn] = Field(max_length=500)
 
 
 class RateIn(BaseModel):
@@ -88,6 +99,7 @@ def get_post(post_id: str, a: Access = Depends(access), s: Session = Depends(get
         whole = [(0.0, asset.duration_s)]
         preview_srt = build_srt(build_cues(asset.transcript, whole, "sentence"))
     return {**post_summary(p), "raw_note": p.raw_note, "variants": variants, "subtitles": preview_srt,
+            "subtitle_lines": post_service.subtitle_lines(asset),
             "faces": asset.faces_detected if asset else 0, "error": "processing_failed" if p.status == "failed" else None}
 
 
@@ -149,7 +161,18 @@ def edit_variant(post_id: str, variant_id: str, body: CaptionIn, a: Access = Dep
     v.caption = body.caption
     if body.title is not None:
         v.title = body.title[:200]
+    if body.tags is not None:
+        v.tags = [t.strip().lstrip("#")[:60] for t in body.tags if t.strip().lstrip("#")]
     requalify(s, p)
+    return post_summary(p)
+
+
+@router.put("/{post_id}/subtitles")
+def edit_subtitles(post_id: str, body: SubtitlesIn, a: Access = Depends(access),
+                   s: Session = Depends(get_session)) -> dict:
+    a.require("approver")
+    p = post_service.get(s, post_id, a.workspace.id)
+    post_service.edit_subtitles(s, p, a.member, [line.model_dump() for line in body.lines])
     return post_summary(p)
 
 

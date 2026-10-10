@@ -323,3 +323,43 @@ def test_whisper_gets_samples_not_a_path(tmp_path, monkeypatch):
     monkeypatch.setattr(transcribe, "_model", lambda: Model())
     transcribe.transcribe(wav)
     assert seen["audio"].tolist() == [0.0, 0.5, -1.0]  # decoded here, PyAV is never asked
+
+
+async def test_edited_subtitles_rerender_and_keep_the_edited_captions(workspace, media_stubs, scripted_ai):
+    from growth_engine.models import MediaAsset
+
+    post_id = _ingest(workspace, "#گزارش_برنامه برنامه")
+    await runner.run_one("media")
+    with db.session_scope() as s:
+        v, _ = posts.variants_of(s, post_id)[0]
+        v.caption, v.tags = "متن ویرایش‌شده‌ی من", ["کوه"]
+        link_id = v.tracked_link_id
+        lines = posts.subtitle_lines(s.get(MediaAsset, s.get(Post, post_id).asset_id))
+        assert lines
+        lines[0]["text"] = "از قله‌ی شتری بالا رفتیم"
+        posts.edit_subtitles(s, s.get(Post, post_id), None, lines)
+        assert s.get(Post, post_id).status == "processing"
+    await runner.run_one("media")
+    with db.session_scope() as s:
+        post = s.get(Post, post_id)
+        assert post.status == "pending"
+        seg = s.get(MediaAsset, post.asset_id).transcript["segments"][0]
+        assert seg["text"] == "از قله‌ی شتری بالا رفتیم"
+        assert [w["word"] for w in seg["words"]] == ["از", "قله‌ی", "شتری", "بالا", "رفتیم"]
+        kept = next(v for v, _ in posts.variants_of(s, post_id) if v.tracked_link_id == link_id)
+        assert (kept.caption, kept.tags) == ("متن ویرایش‌شده‌ی من", ["کوه"])  # the re-render kept the edit
+
+
+def test_subtitle_lines_must_keep_their_times(workspace, media_stubs):
+    from growth_engine.models import MediaAsset
+
+    post_id = _ingest(workspace, "#گزارش_برنامه برنامه")
+    with db.session_scope() as s:
+        post = s.get(Post, post_id)
+        post.status = "pending"
+        asset = s.get(MediaAsset, post.asset_id)
+        asset.duration_s = 10.0
+        asset.transcript = {"segments": [{"start": 1, "end": 2, "text": "سلام", "words": []}]}
+        with pytest.raises(AppError) as err:
+            posts.edit_subtitles(s, post, None, [{"start": 5, "end": 30, "text": "x"}])
+        assert err.value.code == "subtitle_time_invalid"

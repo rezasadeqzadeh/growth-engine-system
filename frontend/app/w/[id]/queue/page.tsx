@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { fa, fill } from "@/lib/fa";
 import { dateTimeFa, num } from "@/lib/format";
-import type { PostDetail, PostSummary, QcItem, Recipe } from "@/lib/types";
+import type { PostDetail, PostSummary, QcItem, Recipe, SubtitleLine, Variant } from "@/lib/types";
 import { useAction, useLoad } from "@/components/hooks";
 import { Empty, ErrorLine, Field, Loading, Tabs } from "@/components/ui";
 import { useWorkspace } from "@/components/workspace";
@@ -33,11 +33,45 @@ function QcList({ items }: { items: QcItem[] }) {
   );
 }
 
+interface Draft { title: string; caption: string; tags: string }
+
+const draftOf = (v: Variant): Draft => ({ title: v.title, caption: v.caption, tags: v.tags.map((t) => `#${t}`).join(" ") });
+const tagsOf = (text: string): string[] => text.split(/[\s,،]+/).map((t) => t.replace(/^#/, "")).filter(Boolean);
+const sameDraft = (a: Draft, b: Draft) => a.title === b.title && a.caption === b.caption
+  && tagsOf(a.tags).join(" ") === tagsOf(b.tags).join(" ");
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+function SubtitleEditor({ base, lines, busy, run, onSaved }: {
+  base: string; lines: SubtitleLine[]; busy: boolean;
+  run: (fn: () => Promise<unknown>) => Promise<unknown>; onSaved: () => Promise<void>;
+}) {
+  const [draft, setDraft] = useState<SubtitleLine[]>(lines);
+  useEffect(() => setDraft(lines), [lines]);
+  const changed = draft.some((l, i) => l.text !== lines[i]?.text);
+  return (
+    <div style={{ marginTop: 16 }}>
+      <h3>{fa.queue.editSubtitles}</h3>
+      <p className="muted">{fa.queue.editSubtitlesHint}</p>
+      {draft.map((l, i) => (
+        <div key={`${l.start}-${l.end}`} className="row" style={{ alignItems: "center", marginBottom: 4 }}>
+          <span className="muted ltr" style={{ minWidth: 92 }}>{clock(l.start)} – {clock(l.end)}</span>
+          <input type="text" value={l.text} style={{ flex: 1 }}
+            onChange={(e) => setDraft(draft.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))} />
+        </div>
+      ))}
+      <button className="btn small" disabled={busy || !changed} onClick={() => run(async () => {
+        await api(`${base}/subtitles`, "PUT", { lines: draft });
+        await onSaved();
+      })}>{fa.queue.saveSubtitles}</button>
+    </div>
+  );
+}
+
 function PostView({ wsId, postId, onChanged }: { wsId: string; postId: string; onChanged: () => void }) {
   const post = useLoad<PostDetail>(`/workspaces/${wsId}/posts/${postId}`);
   const recipes = useLoad<{ recipes: Recipe[] }>(`/workspaces/${wsId}/recipes`);
   const [tab, setTab] = useState(0);
-  const [caption, setCaption] = useState("");
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [instruction, setInstruction] = useState("");
   const [fix, setFix] = useState("");
   const [at, setAt] = useState("");
@@ -47,7 +81,13 @@ function PostView({ wsId, postId, onChanged }: { wsId: string; postId: string; o
   const p = post.data;
   const variant = p?.variants[tab];
 
-  useEffect(() => setCaption(variant?.caption ?? ""), [variant?.id, variant?.caption]);
+  useEffect(() => setDrafts(Object.fromEntries((p?.variants ?? []).map((v) => [v.id, draftOf(v)]))), [p]);
+  const dirty = (p?.variants ?? []).filter((v) => {
+    const d = drafts[v.id];
+    return d !== undefined && !sameDraft(d, draftOf(v));
+  });
+  const draft = variant ? drafts[variant.id] ?? draftOf(variant) : null;
+  const setDraft = (patch: Partial<Draft>) => variant && setDrafts({ ...drafts, [variant.id]: { ...draftOf(variant), ...drafts[variant.id], ...patch } });
 
   if (post.loading && !p) return <Loading />;
   if (!p) return <ErrorLine text={post.error} />;
@@ -73,13 +113,23 @@ function PostView({ wsId, postId, onChanged }: { wsId: string; postId: string; o
         </div>
         {editable ? (
           <div className="row no-print">
-            {p.status === "pending" ? <button className="btn" disabled={busy} onClick={() => act("/approve")}>{fa.queue.approve}</button> : null}
+            <button className="btn ghost" disabled={busy || dirty.length === 0} onClick={() => run(async () => {
+              for (const v of dirty) {
+                const d = drafts[v.id] ?? draftOf(v);
+                await api(`${base}/variants/${v.id}`, "PUT", { title: d.title, caption: d.caption, tags: tagsOf(d.tags) });
+              }
+              await post.reload();
+              setNote(fa.queue.savedAll);
+            })}>{fa.queue.saveChanges}{dirty.length ? ` (${num(dirty.length)})` : ""}</button>
+            {p.status === "pending" ? <button className="btn" disabled={busy || dirty.length > 0} title={dirty.length ? fa.queue.unsaved : undefined}
+              onClick={() => act("/approve")}>{fa.queue.approve}</button> : null}
             <input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} style={{ width: "auto" }} />
             <button className="btn ghost" disabled={busy || !at}
               onClick={() => act("/schedule", { at: new Date(at).toISOString() })}>{fa.queue.schedule}</button>
           </div>
         ) : null}
       </div>
+      {editable && dirty.length ? <p className="chip warn">{fa.queue.unsaved}</p> : null}
       {p.auto_approve_at ? <p className="chip warn">{fa.queue.autoApprove} {dateTimeFa(p.auto_approve_at)}</p> : null}
       {p.tag_guessed && editable ? (
         <div className="row" style={{ margin: "8px 0" }}>
@@ -105,16 +155,15 @@ function PostView({ wsId, postId, onChanged }: { wsId: string; postId: string; o
             ))}
           </div>
           <div>
-            {variant.title ? <p><strong>{variant.title}</strong></p> : null}
-            <textarea rows={10} value={caption} disabled={!editable} onChange={(e) => setCaption(e.target.value)} />
-            {editable ? (
-              <button className="btn small" disabled={busy || caption === variant.caption}
-                onClick={() => run(async () => {
-                  await api(`${base}/variants/${variant.id}`, "PUT", { caption });
-                  await post.reload();
-                  setNote(fa.common.saved);
-                })}>{fa.common.save}</button>
-            ) : null}
+            <Field label={fa.queue.editTitle}>
+              <input type="text" value={draft?.title ?? ""} maxLength={200} disabled={!editable} onChange={(e) => setDraft({ title: e.target.value })} />
+            </Field>
+            <Field label={fa.queue.editCaption2}>
+              <textarea rows={10} value={draft?.caption ?? ""} disabled={!editable} onChange={(e) => setDraft({ caption: e.target.value })} />
+            </Field>
+            <Field label={fa.queue.editTags}>
+              <input type="text" value={draft?.tags ?? ""} disabled={!editable} onChange={(e) => setDraft({ tags: e.target.value })} />
+            </Field>
           </div>
         </div>
       ) : <Empty />}
@@ -139,7 +188,13 @@ function PostView({ wsId, postId, onChanged }: { wsId: string; postId: string; o
       <h3 style={{ marginTop: 16 }}>{fa.queue.qc}</h3>
       <QcList items={p.qc} />
       {p.faces > 0 ? <p className="muted">{fill(fa.queue.faces, { n: num(p.faces) })}</p> : null}
-      {p.subtitles ? (<><h3>{fa.queue.subtitles}</h3><pre className="srt">{p.subtitles}</pre></>) : null}
+      {editable && p.subtitle_lines.length ? (
+        <SubtitleEditor base={base} lines={p.subtitle_lines} busy={busy} run={run} onSaved={async () => {
+          setNote(fa.queue.subtitlesQueued);
+          await post.reload();
+          onChanged();
+        }} />
+      ) : p.subtitles ? (<><h3>{fa.queue.subtitles}</h3><pre className="srt">{p.subtitles}</pre></>) : null}
       {editable ? (
         <div className="row no-print" style={{ marginTop: 12 }}>
           <input type="text" placeholder={fa.queue.rejectReason} value={reason} onChange={(e) => setReason(e.target.value)} style={{ maxWidth: 320 }} />

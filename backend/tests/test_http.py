@@ -320,3 +320,18 @@ def test_a_new_workspace_brand_kit_has_colours_and_fonts(client):
     kit = client.get(f"/api/workspaces/{ws['id']}/brand-kit", headers=headers).json()
     assert len(kit["colors"]["primary"]) == 2 and kit["colors"]["text"].startswith("#")
     assert kit["fonts"]["body"] and kit["fonts"]["heading"]
+
+
+def test_a_reviewer_saves_title_caption_and_hashtags_before_approving(client, workspace):
+    post_id, _ = _published_site_post(workspace)
+    with db.session_scope() as s:
+        s.get(Post, post_id).status = "pending"
+        variant_id = s.scalar(select(PostVariant.id).where(PostVariant.post_id == post_id))
+    owner = _login(client, "09120000001")
+    r = client.put(f"/api/workspaces/{workspace['id']}/posts/{post_id}/variants/{variant_id}", headers=owner,
+                   json={"title": "عنوان تازه", "caption": "متن تازه", "tags": ["#کوه", " بشرویه ", ""]})
+    assert r.status_code == 200, r.text
+    detail = client.get(f"/api/workspaces/{workspace['id']}/posts/{post_id}", headers=owner).json()
+    v = detail["variants"][0]
+    assert (v["title"], v["caption"], v["tags"]) == ("عنوان تازه", "متن تازه", ["کوه", "بشرویه"])
+    assert detail["status"] == "pending"  # saving does not approve

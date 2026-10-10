@@ -17,6 +17,7 @@ from ..errors import AppError, NotFound
 from ..i18n import patterns
 from ..jobs import queue
 from ..models import AuditLog, Channel, MediaAsset, Membership, Post, PostVariant, TagRecipe, Workspace
+from ..media.subtitles import build_cues
 from . import calendar, timing
 
 HASHTAG = re.compile(r"#([\w\u0600-\u06FF\u200c]+)")
@@ -179,6 +180,53 @@ def request_subtitle_fix(s: Session, post: Post, member: Membership | None, text
                   dedupe_key=f"process:{post.id}")
     _log(s, post, member, "subtitle_fix", wrong=fix[0], right=fix[1])
     return fix
+
+
+MAX_SUBTITLE_LINES = 500
+
+
+def subtitle_lines(asset: MediaAsset | None) -> list[dict]:
+    """The subtitles as lines with their times (seconds in the source video), as people edit them."""
+    if asset is None or not asset.transcript or not asset.duration_s:
+        return []
+    cues = build_cues(asset.transcript, [(0.0, asset.duration_s)], "sentence")
+    return [{"start": round(c.start, 3), "end": round(c.end, 3), "text": c.text} for c in cues]
+
+
+def edit_subtitles(s: Session, post: Post, member: Membership | None, lines: list[dict]) -> None:
+    """Replace the subtitle text and re-render. An unchanged line keeps Whisper's word timings; an edited
+    line spreads its words evenly over the line's time. A line left empty is removed."""
+    _require_editable(post)
+    asset = s.get(MediaAsset, post.asset_id) if post.asset_id else None
+    if asset is None or not asset.transcript or not asset.duration_s:
+        raise AppError("no_transcript", "This post has no subtitles")
+    if len(lines) > MAX_SUBTITLE_LINES:
+        raise AppError("subtitles_too_many", "Too many subtitle lines")
+    current = {(round(c.start, 3), round(c.end, 3)): c
+               for c in build_cues(asset.transcript, [(0.0, asset.duration_s)], "sentence")}
+    segments = []
+    last_end = 0.0
+    for line in sorted(lines, key=lambda x: float(x["start"])):
+        start, end = float(line["start"]), float(line["end"])
+        text = " ".join(str(line.get("text") or "").split())[:300]
+        if not (0 <= start < end <= asset.duration_s + 0.5) or start < last_end - 0.01:
+            raise AppError("subtitle_time_invalid", "Subtitle lines must keep their order and times")
+        last_end = end
+        if not text:
+            continue
+        cue = current.get((round(start, 3), round(end, 3)))
+        if cue is not None and cue.text == text and cue.words:
+            words = [{"start": a, "end": b, "word": w} for a, b, w in cue.words]
+        else:
+            parts = text.split(" ")
+            step = (end - start) / len(parts)
+            words = [{"start": round(start + i * step, 3), "end": round(start + (i + 1) * step, 3), "word": w}
+                     for i, w in enumerate(parts)]
+        segments.append({"start": start, "end": end, "text": text, "words": words})
+    asset.transcript = {**asset.transcript, "segments": segments}
+    post.status = "processing"
+    queue.enqueue(s, "process_video", {"post_id": post.id, "rerender": True}, dedupe_key=f"process:{post.id}")
+    _log(s, post, member, "subtitles_edit", lines=len(segments))
 
 
 def rate(s: Session, post: Post, member: Membership | None, score: int) -> None:
