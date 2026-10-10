@@ -1,0 +1,95 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend API",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${command:python.interpreterPath}",
+      "module": "uvicorn",
+      "args": ["growth_engine.main:app", "--reload", "--port", "8000"],
+      "cwd": "${workspaceFolder}/backend",
+      "envFile": "${workspaceFolder}/backend/.env",
+      "env": { "PYTHONPATH": "${workspaceFolder}/backend" },
+      "jinja": true,
+      "justMyCode": true
+    },
+    {
+      "name": "Worker (default)",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${command:python.interpreterPath}",
+      "module": "growth_engine.jobs.runner",
+      "args": ["default"],
+      "cwd": "${workspaceFolder}/backend",
+      "envFile": "${workspaceFolder}/backend/.env",
+      "env": { "PYTHONPATH": "${workspaceFolder}/backend" }
+    },
+    {
+      "name": "Worker (media)",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${command:python.interpreterPath}",
+      "module": "growth_engine.jobs.runner",
+      "args": ["media"],
+      "cwd": "${workspaceFolder}/backend",
+      "envFile": "${workspaceFolder}/backend/.env",
+      "env": { "PYTHONPATH": "${workspaceFolder}/backend" }
+    },
+    {
+      "name": "Worker (meta)",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${command:python.interpreterPath}",
+      "module": "growth_engine.jobs.runner",
+      "args": ["meta"],
+      "cwd": "${workspaceFolder}/backend",
+      "envFile": "${workspaceFolder}/backend/.env",
+      "env": { "PYTHONPATH": "${workspaceFolder}/backend" }
+    },
+    {
+      "name": "Scheduler",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${command:python.interpreterPath}",
+      "module": "growth_engine.jobs.scheduler",
+      "cwd": "${workspaceFolder}/backend",
+      "envFile": "${workspaceFolder}/backend/.env",
+      "env": { "PYTHONPATH": "${workspaceFolder}/backend" }
+    },
+    {
+      "name": "Bot poller (local)",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${command:python.interpreterPath}",
+      "module": "growth_engine.bots.poll",
+      "cwd": "${workspaceFolder}/backend",
+      "envFile": "${workspaceFolder}/backend/.env",
+      "env": { "PYTHONPATH": "${workspaceFolder}/backend" }
+    },
+    {
+      "name": "Panel (next dev)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/frontend"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Backend + worker + scheduler",
+      "configurations": ["Backend API", "Worker (default)", "Scheduler"]
+    },
+    {
+      "name": "Bot video flow (API + workers + poller + panel)",
+      "configurations": ["Backend API", "Worker (default)", "Worker (media)", "Bot poller (local)", "Panel (next dev)"],
+      "stopAll": true
+    },
+    {
+      "name": "Everything",
+      "configurations": ["Backend API", "Worker (default)", "Worker (media)", "Worker (meta)", "Scheduler",
+                         "Bot poller (local)", "Panel (next dev)"],
+      "stopAll": true
+    }
+  ]
+}

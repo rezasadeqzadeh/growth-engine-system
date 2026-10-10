@@ -2,10 +2,29 @@
 
 import { useState } from "react";
 import { api } from "@/lib/api";
-import { fa, fill } from "@/lib/fa";
+import { fa } from "@/lib/fa";
 import { useAction, useLoad } from "@/components/hooks";
 import { ErrorLine, Loading } from "@/components/ui";
 import { useWorkspace } from "@/components/workspace";
+
+/** The bind command, kept in English digits and left-to-right so it is copied exactly. */
+function LinkCode({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+  const command = `/start ${code}`;
+  return (
+    <div>
+      <span className="muted">{fa.team.linkHint}</span>
+      <div className="row" style={{ alignItems: "center" }}>
+        <code dir="ltr" style={{ userSelect: "all", padding: "2px 6px" }}>{command}</code>
+        <button className="btn ghost small" onClick={async () => {
+          await navigator.clipboard.writeText(command);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }}>{copied ? fa.team.copied : fa.team.copy}</button>
+      </div>
+    </div>
+  );
+}
 
 interface Member {
   id: string; display_name: string; role: string; user_id: string | null; bale_bound: boolean; telegram_bound: boolean;
@@ -39,7 +58,7 @@ export default function TeamPage() {
                 </select>
               </td>
               <td>{[m.bale_bound ? fa.channels.names.bale : "", m.telegram_bound ? fa.channels.names.telegram : ""].filter(Boolean).join(" · ") || "—"}</td>
-              <td>{m.link_code ? <span className="ltr">{fill(fa.team.linkHint, { code: m.link_code })}</span> : null}</td>
+              <td>{m.link_code ? <LinkCode code={m.link_code} /> : null}</td>
               <td className="row">
                 <button className="btn ghost small" disabled={busy} onClick={() => run(async () => {
                   await api(`${base}/${m.id}/link-code`, "POST");

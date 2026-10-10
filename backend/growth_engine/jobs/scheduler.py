@@ -90,5 +90,7 @@ async def run_forever(interval_s: int = 60) -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    from ..logs import setup
+
+    setup()  # timestamps and LOG_LEVEL, as in the API
     asyncio.run(run_forever())

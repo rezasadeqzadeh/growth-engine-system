@@ -53,6 +53,14 @@ async def test_start_with_a_link_code_binds_the_member(workspace, sent):
     assert "Coach" in _texts(sent)[0]
 
 
+async def test_a_link_code_typed_with_persian_digits_binds_the_member(workspace, sent):
+    with db.session_scope() as s:
+        s.add(Membership(workspace_id=workspace["id"], display_name="Coach", role="approver", link_code="61D2022E"))
+    await gateway.handle_update(workspace["bot_id"], _update(message=_message(4242, "/start \u200f۶۱D۲۰۲۲E\u200e")))
+    with db.session_scope() as s:
+        assert s.scalar(select(Membership.telegram_user_id).where(Membership.display_name == "Coach")) == "4242"
+
+
 async def test_a_tagged_video_from_a_member_starts_a_post(workspace, sent):
     msg = _message(777, caption="#گزارش_برنامه برنامه‌ی جمعه", video={"file_id": "F1", "file_size": 5_000_000})
     await gateway.handle_update(workspace["bot_id"], _update(message=msg))

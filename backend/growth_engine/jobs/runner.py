@@ -7,6 +7,7 @@
 import asyncio
 import logging
 import sys
+import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
@@ -53,6 +54,9 @@ async def run_one(queue_name: str = "default") -> bool:
     if reg is None:
         queue.fail(job.id, f"No handler for {job.kind}", retry=False)
         return True
+    started = time.monotonic()
+    logger.info("[job] start %s %s (attempt %d/%d) payload=%s", job.kind, job.id, job.attempts, job.max_attempts,
+                redact(job.payload))
     try:
         await reg.run(job.payload)
     except Exception as exc:  # noqa: BLE001 - every failure is recorded on the job
@@ -60,10 +64,13 @@ async def run_one(queue_name: str = "default") -> bool:
         message = redact(f"{type(exc).__name__}: {exc}")
         logger.exception("[job] %s %s failed", job.kind, job.id)
         retried = queue.fail(job.id, message, retry=not permanent)
+        logger.warning("[job] %s %s failed after %.1fs: %s -> %s", job.kind, job.id, time.monotonic() - started,
+                       message, "will retry" if retried else "gave up")
         if not retried and reg.on_final_failure:
             reg.on_final_failure(job.payload, message)
     else:
         queue.finish(job.id)
+        logger.info("[job] done %s %s in %.1fs", job.kind, job.id, time.monotonic() - started)
     return True
 
 
@@ -79,5 +86,9 @@ async def run_forever(queue_name: str, idle_sleep: float = 2.0) -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    asyncio.run(run_forever(sys.argv[1] if len(sys.argv) > 1 else "default"))
+    from ..logs import setup
+
+    setup()  # timestamps and LOG_LEVEL, as in the API
+    name = sys.argv[1] if len(sys.argv) > 1 else "default"
+    logger.info("[worker] %s queue: waiting for jobs", name)
+    asyncio.run(run_forever(name))

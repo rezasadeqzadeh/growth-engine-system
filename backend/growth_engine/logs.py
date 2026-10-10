@@ -21,6 +21,9 @@ def setup() -> None:
     logging.basicConfig(level=level, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s", force=True)
     # Request lines come from our middleware; uvicorn's access log would repeat them.
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    # httpx logs every request URL; Telegram/Bale URLs carry the bot token. Our own lines say what was called.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
 async def log_requests(request: Request, call_next):

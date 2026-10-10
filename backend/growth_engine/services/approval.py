@@ -1,5 +1,6 @@
 """What the bot sends approvers: the draft card, the Instagram handoff, the SRT."""
 
+import logging
 import time
 
 import jwt
@@ -11,9 +12,12 @@ from ..bots.api import BotApi, BotApiError
 from ..config import get_settings
 from ..errors import AppError
 from ..i18n import t
+from ..redact import redact
 from ..models import Channel, MediaAsset, Post, PostVariant, Publication, TagRecipe
 from . import notify, storage
 from . import posts as post_service
+
+logger = logging.getLogger(__name__)
 
 HANDOFF_TTL_S = 7 * 24 * 3600
 
@@ -53,11 +57,17 @@ async def send_approval_card(payload: dict) -> None:
     with db.session_scope() as s:
         post = s.get(Post, payload["post_id"])
         if post is None or post.status != "pending":
+            logger.info("[approval] card skipped for post %s: status is %s", payload["post_id"][:8],
+                        post.status if post else "gone")
             return
         text, keyboard = build_card(s, post)
         preview = next((v for v, _ in post_service.variants_of(s, post.id) if v.kind in ("reel", "message")), None)
         sent = []
-        for bot, chat in notify.recipients(s, post.workspace_id, notify.APPROVERS):
+        recipients = list(notify.recipients(s, post.workspace_id, notify.APPROVERS))
+        if not recipients:
+            logger.warning("[approval] post %s: nobody to send the card to. A member with role owner/operator/"
+                           "approver must be linked to the bot (/start CODE)", post.id[:8])
+        for bot, chat in recipients:
             api = BotApi(bot.type, bot.credentials["bot_token"])
             try:
                 if preview and preview.video_key:
@@ -65,8 +75,12 @@ async def send_approval_card(payload: dict) -> None:
                 msg = await api.send_message(chat, text, keyboard)
                 sent.append({"platform": bot.type, "channel_id": bot.id, "chat_id": chat,
                              "message_id": str(msg.get("message_id"))})
-            except BotApiError:
+            except BotApiError as exc:
+                logger.warning("[approval] post %s: card to %s chat %s failed: %s", post.id[:8], bot.type, chat,
+                               redact(exc, bot.secrets()))
                 continue
+            logger.info("[approval] post %s: card sent to %s chat %s%s", post.id[:8], bot.type, chat,
+                        " with the video" if preview and preview.video_key else "")
         post.cards = sent
 
 

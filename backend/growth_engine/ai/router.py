@@ -8,7 +8,9 @@ from MODEL_LIGHT / MODEL_STRONG / MODEL_VISION, all served by OpenCode.
 
 import hashlib
 import json
+import logging
 import re
+import time
 from datetime import timedelta
 from typing import Protocol
 
@@ -16,6 +18,7 @@ from .. import db
 from ..config import get_settings
 from ..errors import AppError
 from ..models import AICache
+from ..redact import redact
 from ..services import usage
 from .opencode import ImagePart, OpenCodeClient, Prompt
 
@@ -39,6 +42,7 @@ TASK_TIER = {
 }
 
 CACHE_TTL = timedelta(days=7)
+logger = logging.getLogger(__name__)
 
 
 class Completer(Protocol):
@@ -104,10 +108,20 @@ async def ask_text(task: str, system: str, user: str, *, workspace_id: str | Non
     prompt = Prompt(system=system, user=user, images=images or [])
     key = _cache_key(model, prompt)
     if cache and (hit := _cached(key)) is not None:
+        logger.info("[ai] %s: cached reply", task)
         return hit
     if workspace_id:
         usage.consume(workspace_id, "ai_calls")
-    text = await _get_client().complete(model, prompt)
+    logger.info("[ai] %s -> %s (%d chars in%s)", task, model, len(system) + len(user),
+                f", {len(prompt.images)} images" if prompt.images else "")
+    started = time.monotonic()
+    try:
+        text = await _get_client().complete(model, prompt)
+    except Exception as exc:
+        logger.warning("[ai] %s failed after %.1fs: %s: %s", task, time.monotonic() - started, type(exc).__name__,
+                       redact(exc, [get_settings().opencode_server_password]))
+        raise
+    logger.info("[ai] %s answered in %.1fs (%d chars)", task, time.monotonic() - started, len(text))
     if cache:
         _store(key, text)
     return text
@@ -141,10 +155,12 @@ async def ask_json(task: str, system: str, user: str, **kwargs) -> dict | list:
     try:
         return extract_json(text)
     except ValueError:
+        logger.warning("[ai] %s: reply was not JSON, asking once more", task)
         retry = f"{user}\n\n---\n\nYour previous reply was not JSON. Reply with ONLY the JSON document."
         kwargs.pop("cache", None)
         text = await ask_text(task, system, retry, **kwargs)
         try:
             return extract_json(text)
         except ValueError as exc:
+            logger.warning("[ai] %s: second reply was not JSON either: %.300s", task, text)
             raise AppError("ai_bad_reply", "The AI did not return a usable answer", 502) from exc

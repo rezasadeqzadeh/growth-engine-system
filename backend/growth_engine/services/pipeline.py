@@ -7,8 +7,10 @@ pending, and the approval card goes to the bot.
 
 import copy
 import hashlib
+import logging
 import shutil
 import tempfile
+import time
 from pathlib import Path
 
 import jdatetime
@@ -25,6 +27,22 @@ from ..media import faces, ffmpeg, glossary, render, transcribe
 from ..models import BrandKit, Channel, MediaAsset, Offer, Post, PostVariant, Registration, TagRecipe, Workspace
 from . import brand_kit, captions, links, posts, quality, storage, usage
 from .timing import TEHRAN
+
+logger = logging.getLogger(__name__)
+
+
+class _Steps:
+    """One log line per pipeline step with its duration: `[video <post>] 3/9 transcribe (12.4s)`."""
+
+    def __init__(self, post_id: str) -> None:
+        self.post_id, self.n, self.started, self.at = post_id[:8], 0, time.monotonic(), time.monotonic()
+
+    def done(self, name: str, detail: str = "") -> None:
+        self.n += 1
+        now = time.monotonic()
+        logger.info("[video %s] %d. %s (%.1fs)%s", self.post_id, self.n, name, now - self.at,
+                    f": {detail}" if detail else "")
+        self.at = now
 
 GUESS_SYSTEM = """Pick the tag that fits this raw video best, from the list only.
 JSON: {"tag": "one of the tags", "confidence": 0..1}"""
@@ -76,7 +94,9 @@ async def _download(s: Session, asset: MediaAsset, download: dict | None) -> Pat
     channel = s.get(Channel, download["channel_id"])
     assert channel is not None
     key = storage.new_key(asset.workspace_id, "raw", ".mp4")
+    logger.info("[video] downloading the raw video from %s", channel.type)
     await BotApi(channel.type, channel.credentials["bot_token"]).download(download["file_id"], storage.path_of(key))
+    logger.info("[video] downloaded %.1f MB", storage.path_of(key).stat().st_size / 1e6)
     asset.file_key = key
     s.commit()
     return storage.path_of(key)
@@ -106,24 +126,32 @@ async def process_video(payload: dict) -> None:
     with db.session_scope() as s:
         post = s.get(Post, post_id)
         if post is None or post.status not in ("processing",):
+            logger.info("[video %s] skipped: post is %s", post_id[:8], post.status if post else "gone")
             return
         ws = s.get(Workspace, post.workspace_id)
         asset = s.get(MediaAsset, post.asset_id)
         assert ws is not None and asset is not None
         kit = brand_kit.current(s, ws.id)
         rerender = bool(payload.get("rerender"))
+        steps = _Steps(post.id)
+        logger.info("[video %s] start: tag=%s rerender=%s", post.id[:8], post.tag or "-", rerender)
         if not rerender:
             usage.consume(ws.id, "videos")
         src = await _download(s, asset, payload.get("download"))
         probe = ffmpeg.probe(src)
         asset.duration_s, asset.width, asset.height = probe.duration, probe.width, probe.height
+        steps.done("download + probe", f"{probe.duration:.1f}s {probe.width}x{probe.height} audio={probe.has_audio}")
         # Commit before every long step and AI call: the AI router writes usage in
         # its own session, and no transaction should stay open across minutes of FFmpeg.
         s.commit()
 
         work = Path(tempfile.mkdtemp(prefix="ge-"))
         try:
+            if not probe.has_audio:
+                logger.warning("[video %s] the video has no audio: no transcript, no subtitles", post.id[:8])
             if asset.transcript is None and probe.has_audio:
+                logger.info("[video %s] transcribing with Whisper (%s on %s); the first run downloads the model",
+                            post.id[:8], get_settings().whisper_model, get_settings().whisper_device)
                 audio = work / "audio.wav"
                 ffmpeg.extract_audio(src, audio)
                 asset.transcript = transcribe.transcribe(audio, kit.glossary)
@@ -139,6 +167,7 @@ async def process_video(payload: dict) -> None:
                         kit = brand_kit.new_version(s, ws.id, {"glossary": [*(kit.glossary or []), *terms]})
             text = transcribe.plain_text(asset.transcript)
             s.commit()
+            steps.done("transcribe (Whisper)", f"{len(text)} characters")
 
             recipes = list(s.scalars(select(TagRecipe).where(TagRecipe.workspace_id == ws.id)))
             if post.recipe_id is None and recipes:
@@ -147,12 +176,14 @@ async def process_video(payload: dict) -> None:
                     post.tag, post.tag_guessed = guessed, True
                     post.recipe_id = next(r.id for r in recipes if r.tag == guessed)
             recipe = s.get(TagRecipe, post.recipe_id) if post.recipe_id else None
+            steps.done("recipe", f"tag={post.tag or '-'} guessed={post.tag_guessed} channels={recipe.channels if recipe else 'all'}")
             spec = (recipe.video_spec if recipe else None) or {"min_s": 15, "max_s": 60, "aspects": ["9:16"],
                                                                 "subtitle_mode": "sentence", "overlay": "none"}
 
             s.commit()
             line, price_overlay = offer_line(s, ws.id)
             texts = await captions.write_all(ws, kit, recipe, post, text, line)
+            steps.done("captions (AI)", f"title={post.title or '-'}")
             overlay = price_overlay if spec.get("overlay") == "date_price" else (texts.get("overlay") or None)
             if spec.get("overlay") == "none":
                 overlay = None
@@ -161,11 +192,14 @@ async def process_video(payload: dict) -> None:
             silences = ffmpeg.detect_silences(src, probe.duration) if probe.has_audio else []
             specs = render.plan_renders(probe.duration, silences, asset.transcript, spec)
             music = _music_track(post.id) if spec.get("music") else None
+            logger.info("[video %s] rendering %d version(s) with ffmpeg", post.id[:8], len(specs))
             out = render.render(src, work, probe, specs, _look(kit), overlay,
                                 texts.get("cover_title") or post.title, music)
+            steps.done("render (ffmpeg)", ", ".join(f"{k}={v:.0f}s" for k, v in out.durations.items()))
             post.output_duration_s = out.durations.get("short")
             face_count = faces.count_faces(render.sample_frames(src, work, probe.duration))
             asset.faces_detected = face_count or 0
+            steps.done("faces", str(face_count))
 
             keys = {name: storage.save_bytes(storage.new_key(ws.id, "out", path.suffix), path.read_bytes())
                     for name, path in out.files.items() if name != "frame"}
@@ -192,8 +226,11 @@ async def process_video(payload: dict) -> None:
                                     faces=face_count, uses_music=bool(spec.get("music")),
                                     music_licensed=music is not None)
             post.status, post.error = "pending", None
+            steps.done("variants + quality check", f"{len(checked)} variants: "
+                       + ", ".join(f"{c['channel_type']}/{c['kind']}" for c in checked) + f"; qc={post.qc}")
             if recipe and recipe.low_risk and (ws.settings or {}).get("auto_approve_consent"):
                 post.auto_approve_at = db.utcnow() + posts.AUTO_APPROVE_AFTER
             queue.enqueue(s, "send_approval_card", {"post_id": post.id})
+            logger.info("[video %s] ready in %.1fs; approval card queued", post.id[:8], time.monotonic() - steps.started)
         finally:
             shutil.rmtree(work, ignore_errors=True)

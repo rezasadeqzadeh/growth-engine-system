@@ -1,5 +1,6 @@
 """Publishing approved variants through the channel adapters."""
 
+import logging
 from datetime import timedelta
 
 from sqlalchemy import func, select
@@ -14,6 +15,8 @@ from ..jobs.runner import PermanentError
 from ..models import Channel, Offer, Post, PostVariant, Publication, Registration, TrackedLink, Workspace
 from ..redact import redact
 from . import links, notify, storage
+
+logger = logging.getLogger(__name__)
 
 # When metrics are collected after publishing.
 METRIC_DELAYS = (timedelta(hours=1), timedelta(days=1), timedelta(days=3), timedelta(days=7))
@@ -50,19 +53,27 @@ async def publish_variant(payload: dict) -> None:
         # A rescheduled post leaves older publish jobs behind; they step aside.
         if post.status != "scheduled" or (payload.get("at") and post.scheduled_at
                                           and payload["at"] != post.scheduled_at.isoformat()):
+            logger.info("[publish] variant %s skipped: post %s is %s (or was rescheduled)", variant.id[:8],
+                        post.id[:8], post.status)
             return
         if s.scalar(select(Publication.id).where(Publication.variant_id == variant.id,
                                                  Publication.status.in_(("published", "handoff_pending")))):
             return
         ws = s.get(Workspace, post.workspace_id)
         assert ws is not None
+        logger.info("[publish] post %s: %s/%s to %s", post.id[:8], channel.type, variant.kind,
+                    (channel.config or {}).get("chat_id") or channel.name)
         try:
             result = await adapter(channel.type).publish(channel, _item(s, ws, post, variant))
         except PublishError as exc:
             message = redact(exc, channel.secrets())
+            logger.warning("[publish] post %s: %s failed (%s): %s", post.id[:8], channel.type,
+                           "will retry" if exc.retryable else "permanent", message)
             # The failure is recorded by on_publish_failed once retries are over
             # (this session rolls back on the raise).
             raise (RuntimeError(message) if exc.retryable else PermanentError(message)) from None
+        logger.info("[publish] post %s: %s -> %s %s", post.id[:8], channel.type, result.status,
+                    result.external_url or "")
         pub = Publication(variant_id=variant.id, status=result.status, external_id=result.external_id,
                           external_url=result.external_url,
                           published_at=db.utcnow() if result.status == "published" else None)

@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from .. import db
 from ..errors import AppError
 from ..i18n import catalog, patterns, t
+from ..textnorm import ascii_digits
 from ..jobs import queue
 from ..models import (
     BotSession, BotUpdate, Channel, FunnelEvent, KeywordReply, Lead, MediaAsset, Membership, MetricSnapshot,
@@ -162,9 +163,13 @@ def _on_message(s: Session, channel: Channel, msg: dict, reply: Reply) -> None:
     if member is None:
         if chat.get("type") == "private":
             _on_audience_message(s, channel, msg, reply)
+        elif chat_id == raw_chat:
+            logger.info("[bot] ignored a message in the raw-content group from user %s: not linked to a member "
+                        "(send /start CODE to the bot)", sender.get("id"))
         return
     if chat.get("type") != "private" and chat_id != raw_chat:
-        return  # a group the bot is in that is not the raw-content group
+        logger.info("[bot] ignored chat %s: not the raw-content group (raw_chat_id=%s)", chat_id, raw_chat or "-")
+        return
 
     ws = s.get(Workspace, channel.workspace_id)
     session = _session(s, channel, chat_id)
@@ -180,13 +185,16 @@ def _on_message(s: Session, channel: Channel, msg: dict, reply: Reply) -> None:
 
 
 def _bind(s: Session, channel: Channel, sender: dict, text: str, chat_id: str, reply: Reply) -> None:
-    code = text.partition(" ")[2].strip().upper()
+    # Persian digits and invisible direction marks come along when the code is copied from RTL text.
+    code = re.sub(r"[^0-9A-Z]", "", ascii_digits(text.partition(" ")[2]).upper())
     if not code:
         reply.say(chat_id, t("bot.welcome"))
         return
     member = s.scalar(select(Membership).where(Membership.workspace_id == channel.workspace_id,
                                                Membership.link_code == code))
     if member is None:
+        logger.info("[bot] /start with an unknown or used code %r in workspace %s", code,
+                    channel.workspace_id[:8])
         reply.say(chat_id, t("bot.bind_unknown"))
         return
     if channel.type == "bale":
@@ -200,6 +208,8 @@ def _bind(s: Session, channel: Channel, sender: dict, text: str, chat_id: str, r
 def _on_video(s, channel, ws, member, msg, video, chat_id, reply) -> None:
     size_mb = (video.get("file_size") or 0) / (1024 * 1024)
     if size_mb > DOWNLOAD_LIMIT_MB[channel.type]:
+        logger.info("[bot] video of %.1f MB is over the %s MB bot download limit; sent an upload link",
+                    size_mb, DOWNLOAD_LIMIT_MB[channel.type])
         # Bots cannot download it; a direct upload link takes it instead.
         reply.say(chat_id, t("bot.too_big", limit=DOWNLOAD_LIMIT_MB[channel.type],
                              url=uploads.upload_url(ws.id, member.id, msg.get("caption", ""))))
@@ -207,6 +217,8 @@ def _on_video(s, channel, ws, member, msg, video, chat_id, reply) -> None:
     post = post_service.ingest(s, ws, platform=channel.type, member=member, chat_id=chat_id,
                                msg_id=str(msg.get("message_id")), caption_text=msg.get("caption", ""),
                                download={"channel_id": channel.id, "file_id": video["file_id"]})
+    logger.info("[bot] video from %s (%.1f MB) -> post %s, tag=%s; process_video queued (media worker)",
+                member.display_name, size_mb, post.id[:8], post.tag or "none")
     reply.say(chat_id, t("bot.received") if post.tag else t("bot.received_no_tag"))
 
 
