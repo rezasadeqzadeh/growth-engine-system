@@ -18,7 +18,7 @@ from ..db import get_session
 from ..errors import AppError, NotFound
 from ..i18n import catalog, fa_digits, t
 from ..models import Channel, FunnelEvent, Membership, Offer, Post, PostVariant, Publication, Workspace
-from ..services import agency, approval, feedback, links, offers, storage, uploads
+from ..services import agency, approval, captions, feedback, links, offers, storage, uploads
 from ..services import posts as post_service
 
 router = APIRouter(include_in_schema=False)
@@ -203,6 +203,7 @@ def handoff(token: str, request: Request, s: Session = Depends(get_session)) -> 
     post = s.get(Post, variant.post_id)
     return _page(request, "handoff.html", {
         "post": post, "variant": variant, "done": pub.status == "published",
+        "caption": captions.published_text(variant.caption, variant.tags, "instagram", variant.kind),
         "video": storage.signed_url(variant.video_key) if variant.video_key else None,
         "brand": agency.brand_for(s, s.get(Workspace, post.workspace_id))})
 

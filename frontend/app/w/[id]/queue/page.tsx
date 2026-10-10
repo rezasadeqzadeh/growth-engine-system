@@ -35,7 +35,7 @@ function QcList({ items }: { items: QcItem[] }) {
 
 interface Draft { title: string; caption: string; tags: string }
 
-const draftOf = (v: Variant): Draft => ({ title: v.title, caption: v.caption, tags: v.tags.map((t) => `#${t}`).join(" ") });
+const draftOf = (v: Variant): Draft => ({ title: v.title, caption: v.caption, tags: v.tags.map((t) => `#${t.replace(/^#+/, "")}`).join(" ") });
 const tagsOf = (text: string): string[] => text.split(/[\s,،]+/).map((t) => t.replace(/^#/, "")).filter(Boolean);
 const sameDraft = (a: Draft, b: Draft) => a.title === b.title && a.caption === b.caption
   && tagsOf(a.tags).join(" ") === tagsOf(b.tags).join(" ");

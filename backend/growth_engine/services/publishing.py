@@ -14,7 +14,7 @@ from ..jobs import queue
 from ..jobs.runner import PermanentError
 from ..models import Channel, Offer, Post, PostVariant, Publication, Registration, TrackedLink, Workspace
 from ..redact import redact
-from . import links, notify, storage
+from . import captions, links, notify, storage
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +22,13 @@ logger = logging.getLogger(__name__)
 METRIC_DELAYS = (timedelta(hours=1), timedelta(days=1), timedelta(days=3), timedelta(days=7))
 
 
-def _item(s: Session, ws: Workspace, post: Post, variant: PostVariant) -> PublishItem:
+def _item(s: Session, ws: Workspace, post: Post, variant: PostVariant, channel_type: str) -> PublishItem:
     def path(key: str | None):
         return storage.path_of(key) if key else None
 
     return PublishItem(
-        kind=variant.kind, caption=variant.caption, title=variant.title or post.title, tags=variant.tags or [],
+        kind=variant.kind, caption=captions.published_text(variant.caption, variant.tags, channel_type, variant.kind),
+        title=variant.title or post.title, tags=[t.lstrip("#") for t in variant.tags or []],
         video=path(variant.video_key), cover=path(variant.cover_key), srt=path(variant.srt_key),
         video_url=storage.signed_url(variant.video_key) if variant.video_key else None,
         cover_url=storage.signed_url(variant.cover_key) if variant.cover_key else None,
@@ -64,7 +65,7 @@ async def publish_variant(payload: dict) -> None:
         logger.info("[publish] post %s: %s/%s to %s", post.id[:8], channel.type, variant.kind,
                     (channel.config or {}).get("chat_id") or channel.name)
         try:
-            result = await adapter(channel.type).publish(channel, _item(s, ws, post, variant))
+            result = await adapter(channel.type).publish(channel, _item(s, ws, post, variant, channel.type))
         except PublishError as exc:
             message = redact(exc, channel.secrets())
             logger.warning("[publish] post %s: %s failed (%s): %s", post.id[:8], channel.type,

@@ -14,7 +14,7 @@ from ..errors import AppError
 from ..i18n import t
 from ..redact import redact
 from ..models import Channel, MediaAsset, Post, PostVariant, Publication, TagRecipe
-from . import notify, storage
+from . import captions, notify, storage
 from . import posts as post_service
 
 logger = logging.getLogger(__name__)
@@ -61,7 +61,8 @@ async def send_approval_card(payload: dict) -> None:
                         post.status if post else "gone")
             return
         text, keyboard = build_card(s, post)
-        preview = next((v for v, _ in post_service.variants_of(s, post.id) if v.kind in ("reel", "message")), None)
+        preview, preview_type = next(((v, c.type) for v, c in post_service.variants_of(s, post.id)
+                                      if v.kind in ("reel", "message")), (None, ""))
         sent = []
         recipients = list(notify.recipients(s, post.workspace_id, notify.APPROVERS))
         if not recipients:
@@ -71,7 +72,8 @@ async def send_approval_card(payload: dict) -> None:
             api = BotApi(bot.type, bot.credentials["bot_token"])
             try:
                 if preview and preview.video_key:
-                    await api.send_video(chat, storage.path_of(preview.video_key), preview.caption[:900])
+                    await api.send_video(chat, storage.path_of(preview.video_key), captions.published_text(preview.caption, preview.tags, preview_type,
+                                                                     preview.kind)[:900])
                 msg = await api.send_message(chat, text, keyboard)
                 sent.append({"platform": bot.type, "channel_id": bot.id, "chat_id": chat,
                              "message_id": str(msg.get("message_id"))})

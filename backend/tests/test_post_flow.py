@@ -363,3 +363,37 @@ def test_subtitle_lines_must_keep_their_times(workspace, media_stubs):
         with pytest.raises(AppError) as err:
             posts.edit_subtitles(s, post, None, [{"start": 5, "end": 30, "text": "x"}])
         assert err.value.code == "subtitle_time_invalid"
+
+
+async def test_the_routing_tag_never_reaches_the_audience(workspace, ai):
+    from growth_engine.models import TagRecipe
+    from growth_engine.services import brand_kit, captions
+
+    ai.on("You write social media copy", {"instagram": {"caption": "صعود شتری #up #کوه"},
+                                          "aparat": {"title": "صعود", "description": "گزارش", "tags": ["up", "#کوه"]}})
+    ai.on("Suggest Persian Instagram hashtags", {"hashtags": ["#UP", "#کوهنوردی", "#بشرویه"]})
+    with db.session_scope() as s:
+        ws = s.get(Workspace, workspace["id"])
+        recipe = TagRecipe(workspace_id=ws.id, tag="up", goal="engage", caption_style="", cta="", video_spec={})
+        post = Post(workspace_id=ws.id, tag="up", status="processing")
+        copy = await captions.write_all(ws, brand_kit.current(s, ws.id), recipe, post, "متن", "")
+    assert copy["hashtags"] == ["#کوهنوردی", "#بشرویه"]
+    assert copy["instagram"]["caption"] == "صعود شتری #کوه"
+    assert copy["aparat"]["tags"] == ["#کوه"]
+
+
+def test_tags_are_stored_bare_and_added_to_the_text_when_published():
+    from growth_engine.services import captions
+
+    copy = {**COPY, "hashtags": ["#کوهنوردی", "#بشرویه"]}
+    reel = captions.compose(copy, "instagram", "reel", "https://ge.test/b/x")
+    tg = captions.compose(copy, "telegram", "message", "https://ge.test/b/x")
+    story = captions.compose(copy, "instagram", "story", "https://ge.test/b/x")
+    site = captions.compose(copy, "site", "message", "https://ge.test/b/x")
+    assert reel["tags"] == tg["tags"] == site["tags"] == ["کوهنوردی", "بشرویه"]  # no '#' stored: the panel adds one
+    assert "#" not in reel["caption"] and story["tags"] == []
+    assert captions.published_text(reel["caption"], ["کوه"], "instagram", "reel").endswith("\n\n#کوه")
+    assert captions.published_text(tg["caption"], ["کوه"], "telegram", "message").endswith("#کوه")
+    assert captions.published_text("متن", ["کوه"], "instagram", "story") == "متن"
+    assert captions.published_text("متن", ["کوه"], "site", "message") == "متن"
+    assert captions.published_text("متن #کوه", ["کوه"], "telegram", "message") == "متن #کوه"  # never twice

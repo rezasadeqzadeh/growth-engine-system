@@ -6,10 +6,13 @@ Aparat: SEO title, description with the link, tags.
 Story: one line for the link sticker. Site: title and body.
 """
 
+import re
+
 from ..ai import router
 from ..models import BrandKit, Post, TagRecipe, Workspace
 
 MESSENGERS = ("bale", "telegram", "eitaa", "rubika")
+HASHTAG_TOKEN = re.compile(r"#([\w\u200c]+)")
 
 SYSTEM = """You write social media copy in Persian for an Iranian small business.
 Hard rules:
@@ -48,7 +51,8 @@ def _context(ws: Workspace, kit: BrandKit, recipe: TagRecipe | None, post: Post,
         f"Banned: {', '.join(kit.banned or [])}",
     ]
     if recipe:
-        lines += [f"Tag: #{recipe.tag} (goal: {recipe.goal})", f"Caption style: {recipe.caption_style}",
+        lines += [f"Recipe (an internal name; never write it in the copy or the hashtags): {recipe.tag}",
+                  f"Goal: {recipe.goal}", f"Caption style: {recipe.caption_style}",
                   f"Call to action: {recipe.cta}", f"On-screen overlay kind: {recipe.video_spec.get('overlay', 'none')}"]
     lines += [f"Offer: {offer_line or 'none'}", f"Admin's note: {post.raw_note or '-'}",
               f"Transcript: {transcript_text or '- (no speech)'}"]
@@ -64,7 +68,25 @@ async def write_all(ws: Workspace, kit: BrandKit, recipe: TagRecipe | None, post
     tags = await router.ask_json("hashtags", HASHTAG_SYSTEM, context, workspace_id=ws.id, cache=True)
     copy["hashtags"] = [h for h in (tags.get("hashtags", []) if isinstance(tags, dict) else [])
                         if isinstance(h, str) and h.startswith("#")][:8]
-    return copy
+    internal = {x for x in (recipe.tag if recipe else None, post.tag) if x}
+    return strip_internal_tags(copy, internal)
+
+
+def strip_internal_tags(value, internal: set[str]):
+    """The tag that routed the video (#up) is ours, not the audience's: drop it from every hashtag list
+    and every text the AI wrote."""
+    if not internal:
+        return value
+    names = {t.lstrip("#").casefold() for t in internal}
+    if isinstance(value, dict):
+        return {k: strip_internal_tags(v, internal) for k, v in value.items()}
+    if isinstance(value, list):
+        return [strip_internal_tags(v, internal) for v in value
+                if not (isinstance(v, str) and v.strip().lstrip("#").casefold() in names)]
+    if isinstance(value, str):
+        out = HASHTAG_TOKEN.sub(lambda m: "" if m.group(1).casefold() in names else m.group(0), value)
+        return re.sub(r"[ \t]{2,}", " ", out).strip() if out != value else value
+    return value
 
 
 async def edit(ws: Workspace, kit: BrandKit, caption: str, instruction: str) -> str:
@@ -80,19 +102,35 @@ def fill_link(text: str, url: str) -> str:
     return text.replace("{link}", url) if "{link}" in text else f"{text}\n{url}"
 
 
+def _bare(tags) -> list[str]:
+    """Tags are stored without '#'; the '#' is added where a tag is shown or published."""
+    return [t.strip().lstrip("#") for t in tags or [] if isinstance(t, str) and t.strip().lstrip("#")]
+
+
 def compose(copy: dict, channel_type: str, kind: str, url: str) -> dict:
-    """The final title/caption/tags for one variant."""
+    """The final title/caption/tags for one variant. Hashtags stay out of the caption: `published_text`
+    adds them when the post goes out, so an edited tag list is what gets published."""
+    hashtags = _bare(copy.get("hashtags"))
     if channel_type == "instagram":
-        if kind == "story":
+        if kind == "story":  # a story's text is its link sticker: no hashtags
             return {"title": "", "caption": (copy.get("story") or {}).get("text", ""), "tags": []}
         caption = (copy.get("instagram") or {}).get("caption", "").replace("{link}", "").strip()
-        hashtags = " ".join(copy.get("hashtags") or [])
-        return {"title": "", "caption": f"{caption}\n\n{hashtags}".strip(), "tags": copy.get("hashtags") or []}
+        return {"title": "", "caption": caption, "tags": hashtags}
     if channel_type == "aparat":
         a = copy.get("aparat") or {}
         return {"title": a.get("title", "")[:100], "caption": fill_link(a.get("description", ""), url),
-                "tags": [t.lstrip("#") for t in a.get("tags") or []][:5]}
+                "tags": _bare(a.get("tags"))[:5]}
     if channel_type == "site":
         site = copy.get("site") or {}
-        return {"title": site.get("title", ""), "caption": site.get("body", ""), "tags": []}
-    return {"title": "", "caption": fill_link((copy.get("messenger") or {}).get("text", ""), url), "tags": []}
+        return {"title": site.get("title", ""), "caption": site.get("body", ""), "tags": hashtags}
+    return {"title": "", "caption": fill_link((copy.get("messenger") or {}).get("text", ""), url), "tags": hashtags}
+
+
+def published_text(caption: str, tags: list[str] | None, channel_type: str, kind: str) -> str:
+    """The caption as it goes out: Instagram (not stories) and the messengers carry the hashtags at the end.
+    Aparat sends its tags as a field; the site page keeps them out of the body."""
+    if channel_type not in ("instagram", *MESSENGERS) or kind == "story":
+        return caption
+    present = {m.group(1).casefold() for m in HASHTAG_TOKEN.finditer(caption)}
+    extra = [f"#{t}" for t in _bare(tags) if t.casefold() not in present]
+    return f"{caption}\n\n{' '.join(extra)}".strip() if extra else caption
