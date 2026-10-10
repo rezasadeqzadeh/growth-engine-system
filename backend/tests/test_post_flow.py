@@ -280,3 +280,48 @@ def test_subtitle_fix_phrases():
     assert posts.parse_subtitle_fix("شطری را شتری کن") == ("شطری", "شتری")
     assert posts.parse_subtitle_fix("ارسک -> ارسک‌کوه") == ("ارسک", "ارسک‌کوه")
     assert posts.parse_subtitle_fix("سلام") is None
+
+
+async def test_a_retried_video_counts_once_against_the_plan(workspace, media_stubs, scripted_ai, monkeypatch):
+    from growth_engine.models import Job
+    from growth_engine.services import usage
+
+    calls = []
+
+    def flaky(audio, glossary=None):
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("whisper crashed")
+        return {"segments": [{"start": 0, "end": 2, "text": "سلام", "words": []}]}
+
+    monkeypatch.setattr(pipeline.transcribe, "transcribe", flaky)
+    post_id = _ingest(workspace, "#گزارش_برنامه جمعه")
+    assert await runner.run_one("media")  # fails, will retry
+    with db.session_scope() as s:
+        s.scalar(select(Job).where(Job.kind == "process_video")).run_at = db.utcnow()
+    assert await runner.run_one("media")
+    with db.session_scope() as s:
+        assert s.get(Post, post_id).status == "pending"
+    assert usage.used(workspace["id"], "videos") == 1
+
+
+def test_whisper_gets_samples_not_a_path(tmp_path, monkeypatch):
+    np = pytest.importorskip("numpy")
+    import wave
+
+    from growth_engine.media import transcribe
+
+    wav = tmp_path / "a.wav"
+    with wave.open(str(wav), "wb") as w:
+        w.setnchannels(1), w.setsampwidth(2), w.setframerate(16000)
+        w.writeframes(np.array([0, 16384, -32768], dtype=np.int16).tobytes())
+    seen = {}
+
+    class Model:
+        def transcribe(self, audio, **kwargs):
+            seen["audio"] = audio
+            return [], type("Info", (), {"language": "fa"})()
+
+    monkeypatch.setattr(transcribe, "_model", lambda: Model())
+    transcribe.transcribe(wav)
+    assert seen["audio"].tolist() == [0.0, 0.5, -1.0]  # decoded here, PyAV is never asked

@@ -135,10 +135,11 @@ async def process_video(payload: dict) -> None:
         rerender = bool(payload.get("rerender"))
         steps = _Steps(post.id)
         logger.info("[video %s] start: tag=%s rerender=%s", post.id[:8], post.tag or "-", rerender)
-        if not rerender:
-            usage.consume(ws.id, "videos")
         src = await _download(s, asset, payload.get("download"))
         probe = ffmpeg.probe(src)
+        if not rerender and asset.duration_s is None:
+            # Counted once per video: a retried job finds the duration already saved.
+            usage.consume(ws.id, "videos")
         asset.duration_s, asset.width, asset.height = probe.duration, probe.width, probe.height
         steps.done("download + probe", f"{probe.duration:.1f}s {probe.width}x{probe.height} audio={probe.has_audio}")
         # Commit before every long step and AI call: the AI router writes usage in

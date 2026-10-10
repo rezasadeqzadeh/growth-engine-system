@@ -134,7 +134,8 @@ def burn_on_image(src: Path, dst: Path, ass: Path, fonts_dir: Path | None) -> No
 
 
 def extract_audio(src: Path, dst: Path) -> None:
-    run(["ffmpeg", "-y", "-hide_banner", "-i", str(src), "-vn", "-ac", "1", "-ar", "16000", str(dst)])
+    run(["ffmpeg", "-y", "-hide_banner", "-i", str(src), "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le",
+         str(dst)])
 
 
 def _escape(path: Path | None) -> str:
