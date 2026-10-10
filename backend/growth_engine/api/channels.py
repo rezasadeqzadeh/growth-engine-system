@@ -82,9 +82,15 @@ async def _register_webhook(c: Channel) -> None:
     api = BotApi(c.type, creds["bot_token"])
     try:
         await api.get_me()
-        await api.set_webhook(url, creds["webhook_secret"])
     except BotApiError as exc:
         raise AppError("bot_token_invalid", redact(exc, c.secrets()), 400) from None
+    settings = get_settings()
+    if settings.is_development and not settings.public_base_url.startswith("https://"):
+        return  # local run without a public URL: `python -m growth_engine.bots.poll` takes the updates
+    try:
+        await api.set_webhook(url, creds["webhook_secret"])
+    except BotApiError as exc:
+        raise AppError("bot_webhook_failed", redact(exc, c.secrets()), 400) from None
 
 
 def _get(s: Session, a: Access, channel_id: str) -> Channel:
