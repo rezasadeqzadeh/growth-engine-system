@@ -40,18 +40,23 @@ def handler(kind: str, on_final_failure: Callable[[dict, str], None] | None = No
     return wrap
 
 
-def _load_handlers() -> None:
-    from . import tasks  # noqa: F401  (registers every handler)
+def _load_handlers() -> dict[str, Registered]:
+    """The registry the handlers filled. `python -m growth_engine.jobs.runner` runs this file as
+    `__main__`, a second copy of the module; tasks.py registers into `growth_engine.jobs.runner`,
+    so the copy must read that module's HANDLERS, not its own (every job failed "No handler")."""
+    from . import runner, tasks  # noqa: F401  (tasks registers every handler)
+    return runner.HANDLERS
 
 
 async def run_one(queue_name: str = "default") -> bool:
     """Run the next due job. Returns False when there was none."""
-    _load_handlers()
+    handlers = _load_handlers()
     job = queue.claim(queue_name)
     if job is None:
         return False
-    reg = HANDLERS.get(job.kind)
+    reg = handlers.get(job.kind)
     if reg is None:
+        logger.error("[job] %s %s failed: no handler registered for this kind", job.kind, job.id)
         queue.fail(job.id, f"No handler for {job.kind}", retry=False)
         return True
     started = time.monotonic()
