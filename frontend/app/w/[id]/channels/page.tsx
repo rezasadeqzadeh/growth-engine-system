@@ -39,6 +39,7 @@ function ChannelForm({ wsId, channel, type, onSaved }: { wsId: string; channel?:
       {configKeys.map((k) => (
         <Field key={k} label={fa.channels.fields[k] ?? k}>
           <DigitInput type="text" className="ltr" value={config[k] ?? ""} onChange={(e) => setConfig({ ...config, [k]: e.target.value })} />
+          {fa.channels.fieldHints[k] ? <small className="muted">{fa.channels.fieldHints[k]}</small> : null}
         </Field>
       ))}
       {secretKeys.map((k) => {
@@ -47,6 +48,7 @@ function ChannelForm({ wsId, channel, type, onSaved }: { wsId: string; channel?:
           <Field key={k} label={fa.channels.fields[k] ?? k}>
             <input type="password" className="ltr" autoComplete="off" placeholder={stored ? fa.channels.secretSet : ""}
               value={secrets[k] ?? ""} onChange={(e) => setSecrets({ ...secrets, [k]: e.target.value })} />
+            {fa.channels.fieldHints[k] ? <small className="muted">{fa.channels.fieldHints[k]}</small> : null}
           </Field>
         );
       })}
