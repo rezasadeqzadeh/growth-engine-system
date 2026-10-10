@@ -9,7 +9,7 @@ workers (and the media worker on its own server) never take the same job.
 
 from datetime import datetime, timedelta
 
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, text
 from sqlalchemy.orm import Session
 
 from .. import db
@@ -18,6 +18,18 @@ from ..models import Job
 # A running job whose worker died is taken again after this long.
 STALE_AFTER = timedelta(minutes=30)
 MEDIA_KINDS = {"process_video", "transcribe_voice"}
+# Jobs that call Meta's Graph API share one platform token, so they run one at a time.
+META_KINDS = {"fetch_competitor"}
+SINGLE_FLIGHT = {"meta"}
+SINGLE_FLIGHT_LOCK = 0x6D65_7461  # Postgres advisory lock for claiming single-flight queues
+
+
+def queue_for(kind: str) -> str:
+    if kind in MEDIA_KINDS:
+        return "media"
+    if kind in META_KINDS:
+        return "meta"
+    return "default"
 
 
 def enqueue(s: Session, kind: str, payload: dict | None = None, *, run_at: datetime | None = None,
@@ -30,7 +42,7 @@ def enqueue(s: Session, kind: str, payload: dict | None = None, *, run_at: datet
             q = q.where(Job.status.in_(("queued", "running")))
         if s.scalar(q.limit(1)):
             return None
-    job = Job(kind=kind, payload=payload or {}, queue="media" if kind in MEDIA_KINDS else "default",
+    job = Job(kind=kind, payload=payload or {}, queue=queue_for(kind),
               run_at=run_at or db.utcnow(), dedupe_key=dedupe_key, max_attempts=max_attempts)
     s.add(job)
     s.flush()
@@ -40,6 +52,13 @@ def enqueue(s: Session, kind: str, payload: dict | None = None, *, run_at: datet
 def claim(queue: str) -> Job | None:
     now = db.utcnow()
     with db.session_scope() as s:
+        if queue in SINGLE_FLIGHT:
+            if s.get_bind().dialect.name == "postgresql":
+                # Held to commit: two workers cannot both see "nothing running".
+                s.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": SINGLE_FLIGHT_LOCK})
+            if s.scalar(select(Job.id).where(Job.queue == queue, Job.status == "running",
+                                             Job.locked_at >= now - STALE_AFTER).limit(1)):
+                return None
         job = s.scalar(
             select(Job)
             .where(Job.queue == queue, Job.run_at <= now,

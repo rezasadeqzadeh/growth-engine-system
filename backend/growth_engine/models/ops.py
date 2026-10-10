@@ -10,7 +10,7 @@ from ..db import Base, IdMixin
 
 class Job(IdMixin, Base):
     """A unit of background work. queue: default | media (the media worker
-    runs on its own server and only claims `media`)."""
+    runs on its own server and only claims `media`) | meta (one job at a time)."""
 
     __tablename__ = "jobs"
     __table_args__ = (Index("ix_jobs_claim", "queue", "status", "run_at"),)

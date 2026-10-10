@@ -1,0 +1,44 @@
+title Competitor analysis: Meta queue, AI tags, best items, inspiration
+
+participant Panel
+participant API
+participant "Jobs (DB)" as Jobs
+participant "Meta worker\n(exactly one)" as Meta
+participant "Graph API\n(Business Discovery)" as Graph
+participant Worker
+participant "AI router" as AI
+
+note over Panel,API: Workspace members only; every row is scoped by workspace_id
+Panel->API: POST /competitors/{id}/fetch (or /fetch-all)
+API->API: platform token set? handle is an Instagram username?
+API->Jobs: enqueue fetch_competitor (queue=meta, dedupe meta:competitor:{id})
+API-->Panel: queued; fetch_status=queued (panel polls every 10 s)
+
+Meta->Jobs: claim(meta): none while another meta job is running\n(Postgres: advisory lock around the check)
+Meta->Jobs: fetch_status=fetching
+loop up to 100 posts, one page of 50 per call
+Meta->Graph: GET /{META_IG_USER_ID}?fields=business_discovery.username(h){profile, media}\n(at least META_MIN_INTERVAL_S since the last call)
+Graph-->Meta: profile + posts + next cursor
+end
+alt page private / personal / missing
+Meta->Jobs: fetch_status=failed, fetch_error=page_not_found (no retry)
+else token expired
+Meta->Jobs: fetch_status=failed, fetch_error=meta_token_expired; log for the operator
+else network / 5xx
+Meta->Jobs: retry with backoff; after the last attempt fetch_error=fetch_failed
+end
+Meta->Jobs: save profile, upsert posts by permalink, ratio to page average;\nfetch_status=analyzing; enqueue analyze_competitor (queue=default)
+
+Worker->Jobs: claim analyze_competitor
+loop untagged posts, 40 at a time (commit first)
+Worker->AI: competitor_post_tags: content_type, topic (reusing known topics), hook
+end
+Worker->AI: competitor_insight: best types, best topics, why
+Worker->Jobs: competitor.insight saved; fetch_status=done
+
+Panel->API: GET /competitors/{id} and /{id}/posts (full details)
+Panel->API: GET /competitors/best
+API-->Panel: type+topic pairs ranked by avg ratio × sqrt(posts), with example posts
+Panel->API: POST /competitors/inspire {content_type, topic}
+API->AI: competitor_analysis (inspire prompt): an idea for this business, never a copy
+API->Jobs: ContentIdea(source=competitor) → fills calendar slots / "order video"

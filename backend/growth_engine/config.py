@@ -49,6 +49,12 @@ class Settings(BaseSettings):
     ig_app_id: str = ""
     ig_app_secret: str = ""
     ig_redirect_uri: str = ""
+    # Competitor pages are read with Business Discovery, which needs a token from
+    # Facebook Login for one Instagram business account the platform owns.
+    meta_graph_token: str = ""
+    meta_ig_user_id: str = ""
+    # Seconds between two Meta calls (Meta allows ~200 calls an hour per token).
+    meta_min_interval_s: float = 20
 
     whisper_model: str = "large-v3"
     whisper_device: str = "auto"

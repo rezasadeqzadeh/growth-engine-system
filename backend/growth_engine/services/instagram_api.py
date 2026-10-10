@@ -9,6 +9,7 @@ the calls to action instead.
 import asyncio
 import logging
 import re
+import time
 from urllib.parse import urlencode
 
 import httpx
@@ -165,3 +166,60 @@ async def comments(token: str, media_id: str) -> list[dict]:
     data = await _request("GET", f"{GRAPH_V}/{media_id}/comments", [token], params={
         "fields": "id,text,username,timestamp", "access_token": token})
     return data.get("data", [])
+
+
+# Business Discovery: another business/creator account's public profile and posts.
+# Only the Facebook Login API has it, so it runs on the platform's own token
+# (META_GRAPH_TOKEN / META_IG_USER_ID), never a customer's.
+FB_GRAPH_V = "https://graph.facebook.com/v23.0"
+DISCOVERY_MEDIA_FIELDS = ("id,caption,media_type,media_product_type,timestamp,like_count,comments_count,"
+                          "permalink,media_url,thumbnail_url")
+_last_meta_call = 0.0
+_meta_lock = asyncio.Lock()
+
+
+class DiscoveryNotFound(InstagramError):
+    """The page does not exist, is private, or is a personal account."""
+
+    code = "competitor_page_not_found"
+
+
+def discovery_configured() -> bool:
+    s = get_settings()
+    return bool(s.meta_graph_token and s.meta_ig_user_id)
+
+
+async def _throttled(method: str, url: str, secrets: list[str], **kwargs) -> dict:
+    """One Meta call at a time, at least META_MIN_INTERVAL_S apart (the token's hourly budget is shared)."""
+    global _last_meta_call
+    async with _meta_lock:
+        wait = get_settings().meta_min_interval_s - (time.monotonic() - _last_meta_call)
+        if wait > 0:
+            await asyncio.sleep(wait)
+        try:
+            return await _request(method, url, secrets, **kwargs)
+        finally:
+            _last_meta_call = time.monotonic()
+
+
+async def business_discovery(username: str, *, media_limit: int = 50, after: str | None = None) -> dict:
+    """Profile fields plus one page of media: {"profile": {...}, "media": [...], "next": cursor | None}."""
+    s = get_settings()
+    page = f".after({after})" if after else ""
+    fields = (f"business_discovery.username({username}){{id,username,name,biography,website,profile_picture_url,"
+              f"followers_count,media_count,media.limit({media_limit}){page}{{{DISCOVERY_MEDIA_FIELDS}}}}}")
+    try:
+        data = await _throttled("GET", f"{FB_GRAPH_V}/{s.meta_ig_user_id}", [s.meta_graph_token],
+                                params={"fields": fields, "access_token": s.meta_graph_token})
+    except InstagramAuthExpired:
+        raise
+    except InstagramError as exc:
+        # Graph answers 110/100 "Invalid user id" / "Cannot find User" for unknown, private or personal pages.
+        if "cannot find" in str(exc).lower() or "invalid user id" in str(exc).lower():
+            raise DiscoveryNotFound(str(exc)) from exc
+        raise
+    found = data.get("business_discovery") or {}
+    media = found.pop("media", None) or {}
+    cursors = (media.get("paging") or {}).get("cursors") or {}
+    has_next = bool((media.get("paging") or {}).get("next"))
+    return {"profile": found, "media": media.get("data") or [], "next": cursors.get("after") if has_next else None}

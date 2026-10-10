@@ -83,6 +83,17 @@ class Competitor(IdMixin, Base):
     engagement_rate: Mapped[float | None]
     best_hook: Mapped[str | None] = mapped_column(String(120))
     last_collected_at: Mapped[datetime | None]
+    # Public profile, read from Meta (Business Discovery).
+    ig_id: Mapped[str | None] = mapped_column(String(40))
+    biography: Mapped[str] = mapped_column(Text, default="")
+    website: Mapped[str | None] = mapped_column(String(300))
+    profile_picture_url: Mapped[str | None] = mapped_column(Text)
+    media_count: Mapped[int | None]
+    # idle | queued | fetching | analyzing | done | failed
+    fetch_status: Mapped[str] = mapped_column(String(20), default="idle")
+    fetch_error: Mapped[str | None] = mapped_column(String(500))
+    # {"summary": str, "best_types": [{type, why}], "best_topics": [{topic, why}], "at": iso}
+    insight: Mapped[dict | None] = mapped_column(JSON)
 
 
 class CompetitorPost(IdMixin, Base):
@@ -102,6 +113,11 @@ class CompetitorPost(IdMixin, Base):
     offer_price: Mapped[str | None] = mapped_column(String(120))
     hook_type: Mapped[str | None] = mapped_column(String(40))
     ratio_to_avg: Mapped[float | None]
+    external_id: Mapped[str | None] = mapped_column(String(40))
+    media_url: Mapped[str | None] = mapped_column(Text)
+    # Set by the AI: what kind of content (CONTENT_TYPES) and what it is about.
+    content_type: Mapped[str | None] = mapped_column(String(40))
+    topic: Mapped[str | None] = mapped_column(String(80))
 
 
 class CompetitorAnalysis(IdMixin, Base):

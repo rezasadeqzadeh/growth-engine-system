@@ -45,10 +45,22 @@ class OrderIn(BaseModel):
     idea_id: str
 
 
+class InspireIn(BaseModel):
+    content_type: str
+    topic: str | None = None
+    post_id: str | None = None
+
+
 def out(c: Competitor) -> dict:
     return {"id": c.id, "handle": c.handle, "name": c.name, "kind": c.kind, "followers": c.followers,
             "posts_per_week": c.posts_per_week, "engagement_rate": c.engagement_rate, "best_hook": c.best_hook,
-            "last_collected_at": c.last_collected_at.isoformat() if c.last_collected_at else None}
+            "last_collected_at": c.last_collected_at.isoformat() if c.last_collected_at else None,
+            "fetch_status": c.fetch_status, "fetch_error": c.fetch_error, "profile_picture_url": c.profile_picture_url}
+
+
+def detail(c: Competitor) -> dict:
+    return {**out(c), "biography": c.biography, "website": c.website, "media_count": c.media_count,
+            "insight": c.insight}
 
 
 @router.get("")
@@ -67,14 +79,43 @@ def add(body: CompetitorIn, a: Access = Depends(access), s: Session = Depends(ge
     return out(service.add(s, a.workspace, body.handle, body.kind, body.name, body.followers))
 
 
+@router.get("/best")
+def best(a: Access = Depends(access), s: Session = Depends(get_session)) -> dict:
+    return service.best_items(s, a.workspace.id)
+
+
+@router.post("/fetch-all")
+def fetch_all(a: Access = Depends(access), s: Session = Depends(get_session)) -> dict:
+    a.require("operator")
+    rows = s.scalars(select(Competitor).where(Competitor.workspace_id == a.workspace.id))
+    return {"queued": sum(service.request_fetch(s, c) for c in rows if service.HANDLE_RE.match(c.handle))}
+
+
+@router.post("/inspire")
+async def inspire(body: InspireIn, a: Access = Depends(access), s: Session = Depends(get_session)) -> dict:
+    a.require("operator")
+    idea = await service.inspire(s, a.workspace, body.content_type, body.topic, body.post_id)
+    return {"idea_id": idea.id, "text": idea.text}
+
+
+@router.get("/{competitor_id}")
+def get_one(competitor_id: str, a: Access = Depends(access), s: Session = Depends(get_session)) -> dict:
+    return detail(service.get(s, a.workspace.id, competitor_id))
+
+
+@router.post("/{competitor_id}/fetch")
+def fetch(competitor_id: str, a: Access = Depends(access), s: Session = Depends(get_session)) -> dict:
+    a.require("operator")
+    c = service.get(s, a.workspace.id, competitor_id)
+    return {"queued": service.request_fetch(s, c), "competitor": out(c)}
+
+
 @router.get("/{competitor_id}/posts")
 def posts(competitor_id: str, a: Access = Depends(access), s: Session = Depends(get_session)) -> dict:
     c = service.get(s, a.workspace.id, competitor_id)
     rows = s.scalars(select(CompetitorPost).where(CompetitorPost.competitor_id == c.id)
                      .order_by(CompetitorPost.ratio_to_avg.desc().nulls_last()))
-    return {"posts": [{"id": p.id, "url": p.url, "format": p.format, "views": p.views, "likes": p.likes,
-                       "comments": p.comments, "caption": p.caption, "hook_type": p.hook_type,
-                       "ratio_to_avg": p.ratio_to_avg} for p in rows]}
+    return {"posts": [service.post_out(p) for p in rows]}
 
 
 @router.post("/{competitor_id}/posts")
