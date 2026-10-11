@@ -148,3 +148,17 @@ async def test_a_video_over_the_channel_limit_is_refused_before_upload(tmp_path)
     with pytest.raises(PublishError) as info:
         await EitaaAdapter().publish(channel, item)
     assert info.value.retryable is False
+
+
+@respx.mock
+async def test_telegram_gets_the_video_size_so_a_vertical_video_is_not_shown_wide(tmp_path, monkeypatch):
+    from growth_engine.media import ffmpeg
+
+    monkeypatch.setattr(ffmpeg, "probe", lambda p: ffmpeg.Probe(12.4, 1080, 1920, True))
+    route = respx.post(f"https://api.telegram.org/bot{TOKEN}/sendVideo").respond(
+        200, json={"ok": True, "result": {"message_id": 7}})
+    channel = Channel(type="telegram", config={"chat_id": "-100200"}, credentials={"bot_token": TOKEN})
+    await MessengerAdapter("telegram").publish(channel, _item(tmp_path))
+    body = route.calls[0].request.content.decode()
+    for field, value in (("width", "1080"), ("height", "1920"), ("duration", "12")):
+        assert f'name="{field}"\r\n\r\n{value}\r\n' in body

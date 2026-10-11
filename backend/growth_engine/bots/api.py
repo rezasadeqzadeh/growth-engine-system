@@ -21,6 +21,30 @@ BASES = {
     "telegram": os.environ.get("TELEGRAM_API_BASE") or "https://api.telegram.org",
     "bale": "https://tapi.bale.ai",
 }
+def _video_meta(path: Path) -> dict:
+    """Width, height and duration for sendVideo; empty when ffprobe cannot read the file."""
+    from ..media import ffmpeg
+
+    try:
+        probe = ffmpeg.probe(path)
+    except (ffmpeg.MediaError, ValueError, KeyError):
+        return {}
+    return {"width": str(probe.width), "height": str(probe.height), "duration": str(round(probe.duration))}
+
+
+def _thumbnail(cover: Path) -> Path | None:
+    """Telegram ignores a thumbnail over 320 px or 200 kB, so the full-size cover is shrunk to fit."""
+    from ..media import ffmpeg
+
+    thumb = cover.with_name(f"{cover.stem}-thumb.jpg")
+    try:
+        ffmpeg.run(["ffmpeg", "-y", "-hide_banner", "-i", str(cover), "-vf",
+                    "scale=320:320:force_original_aspect_ratio=decrease", "-q:v", "5", str(thumb)])
+    except ffmpeg.MediaError:
+        return None
+    return thumb
+
+
 CAPTION_LIMIT = {"telegram": 1024, "bale": 4096}
 DOWNLOAD_LIMIT_MB = {"telegram": 20, "bale": 20}
 UPLOAD_LIMIT_MB = {"telegram": 50, "bale": 50}
@@ -99,14 +123,16 @@ class BotApi:
 
     async def send_video(self, chat_id: str, path: Path, caption: str = "", keyboard: list | None = None,
                          cover: Path | None = None) -> dict:
-        if cover is None or self.platform != "telegram":
-            return await self.send_file("sendVideo", "video", chat_id, path, caption, keyboard,
-                                        {"supports_streaming": "true"})
-        with path.open("rb") as video, cover.open("rb") as thumb:
+        # Without width/height Telegram guesses the player's shape and shows a vertical video too wide.
+        meta = {"supports_streaming": "true", **_video_meta(path)}
+        thumb_path = _thumbnail(cover) if cover is not None and self.platform == "telegram" else None
+        if thumb_path is None:
+            return await self.send_file("sendVideo", "video", chat_id, path, caption, keyboard, meta)
+        with path.open("rb") as video, thumb_path.open("rb") as thumb:
             return await self.call("sendVideo", {
-                "chat_id": chat_id, "caption": caption[:1024] or None, "supports_streaming": "true",
+                "chat_id": chat_id, "caption": caption[:1024] or None, **meta,
                 "reply_markup": {"inline_keyboard": keyboard} if keyboard else None, "thumbnail": "attach://thumb"},
-                files={"video": (path.name, video), "thumb": (cover.name, thumb)})
+                files={"video": (path.name, video), "thumb": (thumb_path.name, thumb)})
 
     async def send_photo(self, chat_id: str, path: Path, caption: str = "", keyboard: list | None = None) -> dict:
         return await self.send_file("sendPhoto", "photo", chat_id, path, caption, keyboard)
