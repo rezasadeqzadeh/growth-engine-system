@@ -48,14 +48,6 @@ def media_stubs(monkeypatch, tmp_path):
     monkeypatch.setattr(ffmpeg, "extract_audio", lambda src, dst: dst.write_bytes(b"wav"))
     monkeypatch.setattr(ffmpeg, "detect_silences", lambda p, d: [(40.0, 45.0)])
     monkeypatch.setattr(render, "render", fake_render)
-
-    def fake_frames(src, work, duration, count=4):
-        paths = [work / f"sample{i}.jpg" for i in range(count)]
-        for path in paths:
-            path.write_bytes(b"jpg")
-        return paths
-
-    monkeypatch.setattr(ffmpeg, "sample_frames", fake_frames)
     monkeypatch.setattr(pipeline.transcribe, "transcribe", lambda audio, glossary=None: {"segments": [
         {"start": 1.0, "end": 3.0, "text": "از قله‌ی شطری", "words": []}]})
 
@@ -65,7 +57,6 @@ def scripted_ai(ai):
     ai.on("You write social media copy", COPY)
     ai.on("Suggest Persian Instagram hashtags", {"hashtags": ["#کوهنوردی", "#بشرویه", "spam"]})
     ai.on("Pick the tag", {"tag": "منظره"})
-    ai.on("frames from one short video", {"shows": "Hikers climb a rocky peak above a desert valley."})
     return ai
 
 
@@ -409,27 +400,10 @@ def test_tags_are_stored_bare_and_added_to_the_text_when_published():
 
 
 
-async def test_the_copy_sees_what_the_video_shows_and_the_hashtags_follow_the_caption(
-        workspace, media_stubs, scripted_ai):
+
+async def test_the_hashtags_follow_the_caption(workspace, media_stubs, scripted_ai):
     _ingest(workspace, "#گزارش_برنامه برنامه")
     await _run_all("media")
-    calls = {p.system.split("\n")[0]: p for _, p in scripted_ai.calls}
-    describe = next(p for k, p in calls.items() if "frames from one short video" in k)
-    assert len(describe.images) == 4
-    copy_prompt = next(p for k, p in calls.items() if k.startswith("You write social media copy"))
-    assert "Hikers climb a rocky peak" in copy_prompt.user
-    tags_prompt = next(p for k, p in calls.items() if k.startswith("Suggest Persian Instagram hashtags"))
-    assert f"Caption: {COPY['instagram']['caption']}" in tags_prompt.user
-
-
-async def test_a_failed_description_still_writes_the_copy(workspace, ai):
-    from growth_engine.services import captions
-
-    def broken(prompt):
-        raise RuntimeError("vision model down")
-
-    ai.on("frames from one short video", broken)
-    with db.session_scope() as s:
-        ws = s.get(Workspace, workspace["id"])
-        frame = Path(__file__)  # any readable file stands in for a JPEG
-        assert await captions.describe_video(ws, [frame]) == ""
+    assert not any(p.images for _, p in scripted_ai.calls)  # no frame of the video goes to an AI
+    tags = next(p for _, p in scripted_ai.calls if p.system.startswith("Suggest Persian Instagram hashtags"))
+    assert f"Caption: {COPY['instagram']['caption']}" in tags.user

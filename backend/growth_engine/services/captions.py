@@ -6,26 +6,22 @@ Aparat: SEO title, description with the link, tags.
 Story: one line for the link sticker. Site: title and body.
 """
 
-import logging
 import re
-from pathlib import Path
 
 from ..ai import router
-from ..ai.opencode import ImagePart
 from ..models import BrandKit, Post, TagRecipe, Workspace
 
 MESSENGERS = ("bale", "telegram", "eitaa", "rubika")
-logger = logging.getLogger(__name__)
 HASHTAG_TOKEN = re.compile(r"#([\w\u200c]+)")
 
 SYSTEM = """You write social media copy in Persian for an Iranian small business.
 Hard rules:
 - Follow the tone lock exactly: sound like the adjectives, never like the anti-adjectives.
-- Write about THIS video: what it shows and what is said in it. First decide its topic from the
-  admin's note, what the video shows and the transcript, then keep every line on that topic.
-  The transcript is machine speech recognition and may have wrong words; where it makes no sense,
-  trust what the video shows and the note instead. Never fall back to generic text about the business.
-- Use only facts from the transcript, what the video shows, the admin's note and the offer. Never invent names, numbers, prices or dates.
+- Write about THIS video: what is said in it. First decide its topic from the admin's note and
+  the transcript, then keep every line on that topic. The transcript is machine speech recognition
+  and may have wrong words; where it makes no sense, trust the note instead. Never fall back to
+  generic text about the business.
+- Use only facts from the transcript, the admin's note and the offer. Never invent names, numbers, prices or dates.
 - Spell every glossary term exactly as given. Never use a banned word or topic.
 - Follow the recipe's caption style and end with its call to action.
 - Instagram captions never contain a URL; they say the link is in the bio.
@@ -41,7 +37,7 @@ JSON shape:
 Write {link} literally where the link goes; the system puts the tracked link there."""
 
 HASHTAG_SYSTEM = """Suggest Persian Instagram hashtags for this post. Every hashtag must name something
-in this video: its topic, a place, a thing or an activity it shows or mentions. At most two may be
+in this video: its topic, a place, a thing or an activity it mentions. At most two may be
 about the business or its field in general; none are generic spam (#عکس, #لایک, #فالو and the like).
 JSON: {"hashtags": ["#...", ...]} with 5 to 8 items."""
 
@@ -51,7 +47,7 @@ call to action and any {link} placeholder. JSON: {"text": "..."}"""
 
 
 def _context(ws: Workspace, kit: BrandKit, recipe: TagRecipe | None, post: Post, transcript_text: str,
-             offer_line: str, shows: str = "") -> str:
+             offer_line: str) -> str:
     tone = kit.tone or {}
     lines = [
         f"Business: {ws.name}",
@@ -66,14 +62,13 @@ def _context(ws: Workspace, kit: BrandKit, recipe: TagRecipe | None, post: Post,
                   f"Goal: {recipe.goal}", f"Caption style: {recipe.caption_style}",
                   f"Call to action: {recipe.cta}", f"On-screen overlay kind: {recipe.video_spec.get('overlay', 'none')}"]
     lines += [f"Offer: {offer_line or 'none'}", f"Admin's note: {post.raw_note or '-'}",
-              f"What the video shows: {shows or '-'}",
               f"Transcript (speech recognition, may have errors): {transcript_text or '- (no speech)'}"]
     return "\n".join(lines)
 
 
 async def write_all(ws: Workspace, kit: BrandKit, recipe: TagRecipe | None, post: Post, transcript_text: str,
-                    offer_line: str, shows: str = "") -> dict:
-    context = _context(ws, kit, recipe, post, transcript_text, offer_line, shows)
+                    offer_line: str) -> dict:
+    context = _context(ws, kit, recipe, post, transcript_text, offer_line)
     copy = await router.ask_json("caption", SYSTEM, context, workspace_id=ws.id)
     if not isinstance(copy, dict):
         copy = {}
@@ -85,27 +80,6 @@ async def write_all(ws: Workspace, kit: BrandKit, recipe: TagRecipe | None, post
                         if isinstance(h, str) and h.startswith("#")][:8]
     internal = {x for x in (recipe.tag if recipe else None, post.tag) if x}
     return strip_internal_tags(copy, internal)
-
-
-DESCRIBE_SYSTEM = """These are frames from one short video, in order. In two or three plain English
-sentences, say what the video shows: the place, the people and what they do, notable objects, any
-readable text. Only what is visible; no guesses about names. JSON: {"shows": "..."}"""
-
-
-async def describe_video(ws: Workspace, frames: list[Path]) -> str:
-    """What the video shows, from a few frames: the copy then has more than a possibly garbled
-    transcript to go on. Empty when the vision model is unavailable or answers badly."""
-    images = [ImagePart(f.read_bytes(), "image/jpeg", f.name) for f in frames if f.exists()]
-    if not images:
-        return ""
-    try:
-        reply = await router.ask_json("describe_video", DESCRIBE_SYSTEM, "Describe the video.", workspace_id=ws.id,
-                                      images=images, cache=True)
-    except Exception:  # noqa: BLE001 - the copy can still be written from the transcript
-        logger.warning("describing the video failed; writing the copy from the transcript only", exc_info=True)
-        return ""
-    shows = reply.get("shows", "") if isinstance(reply, dict) else ""
-    return shows.strip() if isinstance(shows, str) else ""
 
 
 def strip_internal_tags(value, internal: set[str]):

@@ -24,8 +24,6 @@ Pipe->Pipe: download, probe, Whisper + glossary fix
 opt no tag
 Pipe->AI: guess_tag
 end
-Pipe->Pipe: sample 4 frames
-Pipe->AI: describe_video (vision, frames) -> what it shows
 Pipe->AI: caption (all channels, topic first) then hashtags from that caption
 Pipe->Pipe: silences, plan_renders (short, story, full), ASS/SRT, cover
 Pipe->Pipe: variants per connected channel, tracked link each, QC

@@ -138,19 +138,6 @@ def best_frame(src: Path, dst: Path, aspect: str = "9:16", start: float = 0.0, l
          "-frames:v", "1", str(dst)])
 
 
-def sample_frames(src: Path, workdir: Path, duration: float, count: int = 4) -> list[Path]:
-    """`count` small JPEGs spread evenly over the video (never the first or last instant), for the
-    vision model to see what the video shows."""
-    paths = []
-    for i in range(count):
-        dst = workdir / f"sample{i}.jpg"
-        at = duration * (i + 1) / (count + 1)
-        run(["ffmpeg", "-y", "-hide_banner", "-ss", f"{at:.2f}", "-i", str(src), "-vf", "scale=512:-2",
-             "-frames:v", "1", "-q:v", "4", str(dst)])
-        paths.append(dst)
-    return paths
-
-
 def burn_on_image(src: Path, dst: Path, ass: Path, fonts_dir: Path | None) -> None:
     fonts = f":fontsdir={_escape(fonts_dir)}" if fonts_dir else ""
     run(["ffmpeg", "-y", "-hide_banner", "-loop", "1", "-i", str(src), "-vf", f"ass={_escape(ass)}{fonts}",

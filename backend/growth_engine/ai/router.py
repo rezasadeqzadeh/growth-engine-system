@@ -39,7 +39,6 @@ TASK_TIER = {
     "slot_ideas": "light",
     "read_screenshot": "vision",
     "pick_scene": "vision",
-    "describe_video": "vision",
 }
 
 CACHE_TTL = timedelta(days=7)
