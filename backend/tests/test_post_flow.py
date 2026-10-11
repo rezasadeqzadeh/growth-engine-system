@@ -407,3 +407,16 @@ async def test_the_hashtags_follow_the_caption(workspace, media_stubs, scripted_
     assert not any(p.images for _, p in scripted_ai.calls)  # no frame of the video goes to an AI
     tags = next(p for _, p in scripted_ai.calls if p.system.startswith("Suggest Persian Instagram hashtags"))
     assert f"Caption: {COPY['instagram']['caption']}" in tags.user
+
+
+async def test_empty_copy_from_the_ai_is_logged_with_its_reply(workspace, ai, caplog):
+    from growth_engine.services import brand_kit, captions
+
+    ai.on("You write social media copy", {"topic": "", "instagram": {"caption": ""}, "cover_title": ""})
+    ai.on("Suggest Persian Instagram hashtags", {"hashtags": []})
+    with db.session_scope() as s:
+        ws = s.get(Workspace, workspace["id"])
+        post = Post(workspace_id=ws.id, status="processing")
+        await captions.write_all(ws, brand_kit.current(s, ws.id), None, post, "اگه مشتدی از سیو", "")
+    assert "instagram.caption" in caplog.text and "cover_title" in caplog.text
+    assert "Never leave a field empty" in next(p.system for _, p in ai.calls if p.system.startswith("You write"))

@@ -6,12 +6,15 @@ Aparat: SEO title, description with the link, tags.
 Story: one line for the link sticker. Site: title and body.
 """
 
+import json
+import logging
 import re
 
 from ..ai import router
 from ..models import BrandKit, Post, TagRecipe, Workspace
 
 MESSENGERS = ("bale", "telegram", "eitaa", "rubika")
+logger = logging.getLogger(__name__)
 HASHTAG_TOKEN = re.compile(r"#([\w\u200c]+)")
 
 SYSTEM = """You write social media copy in Persian for an Iranian small business.
@@ -19,8 +22,10 @@ Hard rules:
 - Follow the tone lock exactly: sound like the adjectives, never like the anti-adjectives.
 - Write about THIS video: what is said in it. First decide its topic from the admin's note and
   the transcript, then keep every line on that topic. The transcript is machine speech recognition
-  and may have wrong words; where it makes no sense, trust the note instead. Never fall back to
-  generic text about the business.
+  and may have wrong words; where it makes no sense, trust the note instead.
+- If the transcript is unclear and there is no note, still fill EVERY field: write short copy from
+  the business, the recipe and the clear words you can catch, without claiming details the video
+  may not have. Never leave a field empty.
 - Use only facts from the transcript, the admin's note and the offer. Never invent names, numbers, prices or dates.
 - Spell every glossary term exactly as given. Never use a banned word or topic.
 - Follow the recipe's caption style and end with its call to action.
@@ -72,6 +77,9 @@ async def write_all(ws: Workspace, kit: BrandKit, recipe: TagRecipe | None, post
     copy = await router.ask_json("caption", SYSTEM, context, workspace_id=ws.id)
     if not isinstance(copy, dict):
         copy = {}
+    if empty := _empty_fields(copy):
+        logger.warning("[captions] the AI left %s empty; reply: %s", ", ".join(empty),
+                       json.dumps(copy, ensure_ascii=False)[:1500])
     # The hashtags follow the caption just written, so they stay on the same topic.
     written = (copy.get("instagram") or {}).get("caption", "") if isinstance(copy.get("instagram"), dict) else ""
     tag_context = f"{context}\nTopic: {copy.get('topic') or '-'}\nCaption: {written or '-'}"
@@ -80,6 +88,16 @@ async def write_all(ws: Workspace, kit: BrandKit, recipe: TagRecipe | None, post
                         if isinstance(h, str) and h.startswith("#")][:8]
     internal = {x for x in (recipe.tag if recipe else None, post.tag) if x}
     return strip_internal_tags(copy, internal)
+
+
+def _empty_fields(copy: dict) -> list[str]:
+    """The fields the approval card needs, by the name the reviewer would look for, that came back empty."""
+    want = {"instagram.caption": ("instagram", "caption"), "messenger.text": ("messenger", "text"),
+            "aparat.title": ("aparat", "title"), "aparat.description": ("aparat", "description"),
+            "site.title": ("site", "title"), "story.text": ("story", "text")}
+    out = [name for name, (part, key) in want.items()
+           if not str((copy.get(part) or {}).get(key, "") if isinstance(copy.get(part), dict) else "").strip()]
+    return out + ([] if str(copy.get("cover_title") or "").strip() else ["cover_title"])
 
 
 def strip_internal_tags(value, internal: set[str]):
