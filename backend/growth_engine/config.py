@@ -58,6 +58,8 @@ class Settings(BaseSettings):
 
     whisper_model: str = "large-v3"
     whisper_device: str = "auto"
+    # int8 keeps large-v3 near 2 GB of RAM on a CPU; "default" means float16 on GPU, float32 on CPU.
+    whisper_compute_type: str = "int8"
     brand_fonts_dir: Path = Path("./var/fonts")
 
     def check_production(self) -> None:

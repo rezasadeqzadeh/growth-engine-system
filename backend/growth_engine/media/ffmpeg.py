@@ -9,6 +9,13 @@ from pathlib import Path
 
 ASPECTS = {"9:16": (1080, 1920), "16:9": (1920, 1080), "1:1": (1080, 1080)}
 
+# Picture clean-up on the cut footage, before framing: denoise first (so the sharpening
+# does not amplify noise), then a light lift in brightness, contrast and colour, then sharpen.
+ENHANCE = "hqdn3d=1.2:1.2:3:3,eq=brightness=0.03:contrast=1.08:saturation=1.12,unsharp=7:7:0.8:5:5:0.0"
+# Voice clean-up: cut rumble below 80 Hz and level to -14 LUFS, the loudness Instagram and
+# YouTube normalise to, so quiet recordings are not played back quieter than everyone else's.
+VOICE = "highpass=f=80,loudnorm=I=-14:TP=-1.5:LRA=11"
+
 
 class MediaError(RuntimeError):
     pass
@@ -78,7 +85,7 @@ def cut_and_frame(src: Path, dst: Path, ranges: list[tuple[float, float]], aspec
         labels.append(f"[v{i}]" + (f"[a{i}]" if has_audio else ""))
     n = len(ranges)
     parts.append("".join(labels) + f"concat=n={n}:v=1:a={1 if has_audio else 0}[cv]" + ("[ca]" if has_audio else ""))
-    parts.append(f"[cv]{_fill_frame(w, h)}[framed]")
+    parts.append(f"[cv]{ENHANCE},{_fill_frame(w, h)}[framed]")
     last = "framed"
     if subtitles is not None:
         fonts = f":fontsdir={_escape(fonts_dir)}" if fonts_dir else ""
@@ -91,25 +98,33 @@ def cut_and_frame(src: Path, dst: Path, ranges: list[tuple[float, float]], aspec
         parts.append(f"[{last}][lg]overlay=40:40[wm]")
         last = "wm"
     audio_map: list[str] = []
+    if has_audio:
+        parts.append(f"[ca]{VOICE}[voice]")
     if music is not None:
         music_idx = 2 if logo is not None else 1
         inputs += ["-stream_loop", "-1", "-i", str(music)]
         if has_audio:
-            parts.append(f"[{music_idx}:a]volume=0.25[bgm];[ca][bgm]amix=inputs=2:duration=first[mix]")
+            parts.append(f"[{music_idx}:a]volume=0.25[bgm];[voice][bgm]amix=inputs=2:duration=first[mix]")
         else:
             parts.append(f"[{music_idx}:a]volume=0.6,atrim=0:{sum(b - a for a, b in ranges):.3f}[mix]")
         audio_map = ["-map", "[mix]"]
     elif has_audio:
-        audio_map = ["-map", "[ca]"]
+        audio_map = ["-map", "[voice]"]
     run(["ffmpeg", "-y", "-hide_banner", *inputs, "-filter_complex", ";".join(parts),
-         "-map", f"[{last}]", *audio_map, "-c:v", "libx264", "-preset", "medium", "-crf", "21",
-         "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(dst)])
+         "-map", f"[{last}]", *audio_map, *ENCODE, str(dst)])
+
+
+# High-quality H.264 the platforms accept as-is: slow preset and CRF 17 keep detail that their
+# own re-encode would otherwise make worse; High profile, yuv420p and a 2 s keyframe interval
+# (-g 60 at 30 fps) are what Instagram and YouTube recommend; 48 kHz AAC at 192k for the voice.
+ENCODE = ["-c:v", "libx264", "-preset", "slow", "-crf", "17", "-profile:v", "high", "-pix_fmt", "yuv420p",
+          "-g", "60", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart"]
 
 
 def _fill_frame(w: int, h: int) -> str:
     # The frame filled for the aspect: blurred copy behind, the whole picture in front.
     return (f"split[bgsrc][fgsrc];[bgsrc]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},"
-            f"boxblur=24:2[bg];[fgsrc]scale={w}:{h}:force_original_aspect_ratio=decrease[fg];"
+            f"boxblur=24:2[bg];[fgsrc]scale={w}:{h}:force_original_aspect_ratio=decrease:flags=lanczos[fg];"
             "[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1")
 
 

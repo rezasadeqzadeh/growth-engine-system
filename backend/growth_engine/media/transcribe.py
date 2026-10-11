@@ -15,7 +15,7 @@ def _model():
     from faster_whisper import WhisperModel  # media worker only
 
     s = get_settings()
-    return WhisperModel(s.whisper_model, device=s.whisper_device)
+    return WhisperModel(s.whisper_model, device=s.whisper_device, compute_type=s.whisper_compute_type)
 
 
 def _samples(audio: Path):
