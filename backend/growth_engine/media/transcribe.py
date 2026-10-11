@@ -35,11 +35,14 @@ def _samples(audio: Path):
 
 
 def transcribe(audio: Path, glossary: list[str] | None = None) -> dict:
-    # The glossary goes in as the initial prompt: Whisper then prefers
-    # those spellings for names it hears.
+    # The glossary goes in as the initial prompt and as hotwords (which, unlike the prompt,
+    # reach every 30 s window): Whisper then prefers those spellings for names it hears.
     prompt = patterns()["list_separator"].join(glossary or [])[:400] or None
     segments, info = _model().transcribe(_samples(audio), language="fa", word_timestamps=True,
-                                          vad_filter=True, initial_prompt=prompt)
+                                          vad_filter=True, initial_prompt=prompt, hotwords=prompt, beam_size=5,
+                                          # Off: one misheard line no longer drags the next ones off course
+                                          # (Whisper's repeated or invented sentences on long audio).
+                                          condition_on_previous_text=False)
     out = []
     for seg in segments:
         words = [{"start": round(w.start, 3), "end": round(w.end, 3), "word": w.word.strip()}

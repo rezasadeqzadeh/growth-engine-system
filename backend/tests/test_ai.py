@@ -69,13 +69,13 @@ async def test_password_never_appears_in_an_error():
 
 
 def test_tasks_route_to_their_tier_and_fall_back_to_the_strong_model(monkeypatch):
-    assert router.model_for("hashtags") == "opencode/light-model"
+    assert router.model_for("guess_tag") == "opencode/light-model"
     assert router.model_for("caption") == "opencode/strong-model"
     assert router.model_for("read_screenshot") == "opencode/vision-model"
     monkeypatch.setenv("MODEL_LIGHT", "")
     from growth_engine.config import get_settings
     get_settings.cache_clear()
-    assert router.model_for("hashtags") == "opencode/strong-model"
+    assert router.model_for("guess_tag") == "opencode/strong-model"
 
 
 async def test_ask_json_retries_once_when_the_model_answers_in_prose(ai):

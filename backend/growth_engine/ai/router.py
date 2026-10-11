@@ -30,7 +30,7 @@ TASK_TIER = {
     "competitor_analysis": "strong",
     "competitor_insight": "strong",
     "weekly_report": "strong",
-    "hashtags": "light",
+    "hashtags": "strong",
     "classify_feedback": "light",
     "suggest_reply": "light",
     "guess_tag": "light",
@@ -39,6 +39,7 @@ TASK_TIER = {
     "slot_ideas": "light",
     "read_screenshot": "vision",
     "pick_scene": "vision",
+    "describe_video": "vision",
 }
 
 CACHE_TTL = timedelta(days=7)

@@ -185,7 +185,14 @@ async def process_video(payload: dict) -> None:
 
             s.commit()
             line, price_overlay = offer_line(s, ws.id)
-            texts = await captions.write_all(ws, kit, recipe, post, text, line)
+            try:
+                frames = ffmpeg.sample_frames(src, work, probe.duration)
+            except ffmpeg.MediaError:
+                logger.warning("[video %s] could not sample frames; the copy uses the transcript only", post.id[:8])
+                frames = []
+            shows = await captions.describe_video(ws, frames)
+            steps.done("describe (vision)", shows[:80] or "-")
+            texts = await captions.write_all(ws, kit, recipe, post, text, line, shows)
             steps.done("captions (AI)", f"title={post.title or '-'}")
             overlay = price_overlay if spec.get("overlay") == "date_price" else (texts.get("overlay") or None)
             if spec.get("overlay") == "none":
