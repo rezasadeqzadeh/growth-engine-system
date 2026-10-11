@@ -33,6 +33,9 @@ function QcList({ items }: { items: QcItem[] }) {
   );
 }
 
+// Channels that publish a title of their own; the others only show the title rendered on the cover.
+const TITLED = new Set(["aparat", "site"]);
+
 interface Draft { title: string; caption: string; tags: string }
 
 const draftOf = (v: Variant): Draft => ({ title: v.title, caption: v.caption, tags: v.tags.map((t) => `#${t.replace(/^#+/, "")}`).join(" ") });
@@ -155,9 +158,17 @@ function PostView({ wsId, postId, onChanged }: { wsId: string; postId: string; o
             ))}
           </div>
           <div>
-            <Field label={fa.queue.editTitle}>
-              <input type="text" value={draft?.title ?? ""} maxLength={200} disabled={!editable} onChange={(e) => setDraft({ title: e.target.value })} />
-            </Field>
+            {TITLED.has(variant.channel.type) ? (
+              <Field label={fa.queue.editTitle}>
+                <input type="text" value={draft?.title ?? ""} maxLength={200} disabled={!editable} onChange={(e) => setDraft({ title: e.target.value })} />
+              </Field>
+            ) : variant.title ? (
+              // Rendered into the cover: editing it here would not change the video.
+              <Field label={fa.queue.coverTitle}>
+                <input type="text" value={variant.title} readOnly disabled />
+                <p className="muted">{fa.queue.coverTitleHint}</p>
+              </Field>
+            ) : null}
             <Field label={fa.queue.editCaption2}>
               <textarea rows={10} value={draft?.caption ?? ""} disabled={!editable} onChange={(e) => setDraft({ caption: e.target.value })} />
             </Field>

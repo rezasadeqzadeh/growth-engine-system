@@ -420,3 +420,13 @@ async def test_empty_copy_from_the_ai_is_logged_with_its_reply(workspace, ai, ca
         await captions.write_all(ws, brand_kit.current(s, ws.id), None, post, "اگه مشتدی از سیو", "")
     assert "instagram.caption" in caplog.text and "cover_title" in caplog.text
     assert "Never leave a field empty" in next(p.system for _, p in ai.calls if p.system.startswith("You write"))
+
+
+def test_reels_and_messengers_show_the_cover_title_stories_none():
+    from growth_engine.services import captions
+
+    url = "https://ge.test/b/x"
+    assert captions.compose(COPY, "instagram", "reel", url)["title"] == COPY["cover_title"]
+    assert captions.compose(COPY, "telegram", "message", url)["title"] == COPY["cover_title"]
+    assert captions.compose(COPY, "instagram", "story", url)["title"] == ""
+    assert captions.compose(COPY, "site", "message", url)["title"] == COPY["site"]["title"]

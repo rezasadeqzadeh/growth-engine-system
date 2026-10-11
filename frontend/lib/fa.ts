@@ -127,6 +127,8 @@ export const fa = {
     statusHandoff: "منتظر انتشار دستی",
     kinds: { reel: "ریلز", story: "استوری", full: "نسخه‌ی کامل", message: "پست" } as Record<string, string>,
     editTitle: "عنوان",
+    coverTitle: "عنوان روی کاور",
+    coverTitleHint: "این کانال عنوان جدا ندارد؛ این عنوان روی کاور ویدیو ساخته شده است.",
     editCaption2: "متن / توضیحات",
     editTags: "هشتگ‌ها (با فاصله یا ویرگول جدا کنید)",
     saveChanges: "ذخیره‌ی تغییرات",

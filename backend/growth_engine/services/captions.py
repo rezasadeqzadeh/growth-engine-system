@@ -139,11 +139,13 @@ def compose(copy: dict, channel_type: str, kind: str, url: str) -> dict:
     """The final title/caption/tags for one variant. Hashtags stay out of the caption: `published_text`
     adds them when the post goes out, so an edited tag list is what gets published."""
     hashtags = _bare(copy.get("hashtags"))
+    cover = str(copy.get("cover_title") or "").strip()
     if channel_type == "instagram":
         if kind == "story":  # a story's text is its link sticker: no hashtags
             return {"title": "", "caption": (copy.get("story") or {}).get("text", ""), "tags": []}
         caption = (copy.get("instagram") or {}).get("caption", "").replace("{link}", "").strip()
-        return {"title": "", "caption": caption, "tags": hashtags}
+        # Instagram has no title field; the title people see is the one rendered on the cover.
+        return {"title": cover, "caption": caption, "tags": hashtags}
     if channel_type == "aparat":
         a = copy.get("aparat") or {}
         return {"title": a.get("title", "")[:100], "caption": fill_link(a.get("description", ""), url),
@@ -151,7 +153,8 @@ def compose(copy: dict, channel_type: str, kind: str, url: str) -> dict:
     if channel_type == "site":
         site = copy.get("site") or {}
         return {"title": site.get("title", ""), "caption": site.get("body", ""), "tags": hashtags}
-    return {"title": "", "caption": fill_link((copy.get("messenger") or {}).get("text", ""), url), "tags": hashtags}
+    # Messengers have no title either; the cover (sent as the video's thumbnail) carries it.
+    return {"title": cover, "caption": fill_link((copy.get("messenger") or {}).get("text", ""), url), "tags": hashtags}
 
 
 def published_text(caption: str, tags: list[str] | None, channel_type: str, kind: str) -> str:
